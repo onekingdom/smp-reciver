@@ -162,8 +162,6 @@ export class WebSocketService {
 
   private async handleMessage(message: TwitchEventSubMessage): Promise<void> {
     const { metadata, payload } = message;
-    console.log(message);
-
     switch (metadata.message_type) {
       case "session_welcome":
         console.log("👋 Session welcome received");
@@ -184,7 +182,7 @@ export class WebSocketService {
                 method: "websocket",
                 session_id: this.sessionId,
               },
-              this.broadcasterId
+             
             );
             console.log(`✅ Updated conduit ${this.conduitId} shards with new session ID`);
           } catch (error) {
@@ -427,6 +425,7 @@ export class WebSocketService {
 
       // Verify shards are enabled
       const enabledData = await this.eventSubClient.getConduitWithShards(this.conduitId, this.broadcasterId);
+      
       if (!enabledData) {
         throw new Error(`Failed to verify conduit ${this.conduitId} shard status`);
       }
@@ -453,7 +452,6 @@ export class WebSocketService {
             method: "websocket",
             session_id: this.sessionId,
           },
-          this.broadcasterId
         );
         console.log(`✅ Updated conduit ${this.conduitId} shards with WebSocket transport`);
 

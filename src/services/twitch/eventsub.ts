@@ -127,12 +127,12 @@ export class TwitchEventSubClient extends BaseTwitchClient {
     return response.data;
   }
 
-  async getConduits(channelId: string): Promise<{ data: Conduit[] }> {
+  async getConduits(): Promise<{ data: Conduit[] }> {
     const response = await this.api.get("/eventsub/conduits");
     return response.data;
   }
 
-  async getConduitShards(conduitId: string, channelId: string): Promise<{ data: ConduitShard[] }> {
+  async getConduitShards(conduitId: string, ): Promise<{ data: ConduitShard[] }> {
     const response = await this.api.get("/eventsub/conduits/shards", {
       params: {
         conduit_id: conduitId,
@@ -143,7 +143,7 @@ export class TwitchEventSubClient extends BaseTwitchClient {
 
   async getConduitWithShards(conduitId: string, channelId: string): Promise<Conduit | null> {
     try {
-      const [conduitResponse, shardsResponse] = await Promise.all([this.getConduits(channelId), this.getConduitShards(conduitId, channelId)]);
+      const [conduitResponse, shardsResponse] = await Promise.all([this.getConduits(), this.getConduitShards(conduitId)]);
 
       const conduit = conduitResponse.data.find((c) => c.id === conduitId);
       if (!conduit) {
@@ -167,8 +167,8 @@ export class TwitchEventSubClient extends BaseTwitchClient {
     return response.data;
   }
 
-  async updateAllShardTransports(conduitId: string, transport: Transport, channelId: string): Promise<void> {
-    const conduit = await this.getConduits(channelId);
+  async updateAllShardTransports(conduitId: string, transport: Transport): Promise<void> {
+    const conduit = await this.getConduits();
     const conduitData = conduit.data.find((c) => c.id === conduitId);
 
     if (!conduitData) {
@@ -176,18 +176,20 @@ export class TwitchEventSubClient extends BaseTwitchClient {
     }
 
     // Update each shard's transport
-    await this.updateShardTransport(conduitId, "0", transport, channelId);
+    await this.updateShardTransport(conduitId, "0", transport);
   }
 
-  async updateShardTransport(conduitId: string, shardId: string, transport: Transport, channelId: string): Promise<{ data: Conduit[] }> {
+  async updateShardTransport(conduitId: string, shardId: string, transport: Transport): Promise<{ data: Conduit[] }> {
     console.log("Updating shard transport:", { conduitId, shardId, transport });
 
     const response = await this.api.patch("/eventsub/conduits/shards", {
       conduit_id: conduitId,
-      shards: [{
-        id: shardId,
-        transport: transport
-      }]
+      shards: [
+        {
+          id: shardId,
+          transport: transport,
+        },
+      ],
     });
     return response.data;
   }
@@ -228,7 +230,7 @@ export class TwitchEventSubClient extends BaseTwitchClient {
     conditions: Record<string, unknown>[],
     channelId: string
   ): Promise<EventSubSubscription[]> {
-    const conduit = await this.getConduits(channelId);
+    const conduit = await this.getConduits();
     const conduitData = conduit.data.find((c) => c.id === conduitId);
 
     if (!conduitData) {
