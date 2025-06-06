@@ -15,16 +15,16 @@ export class TwitchEventSubReceiver {
 
   async start(): Promise<void> {
     // Start webhook server
-    const port = this.config.WEBHOOK_PORT || 3000;
-    this.server = serve({
-      fetch: this.webhookService.getApp().fetch,
-      port,
-      websocket: {
-        message: () => {}, // Required but not used
-      },
-    });
+    // const port = this.config.WEBHOOK_PORT || 3000;
+    // this.server = serve({
+    //   fetch: this.webhookService.getApp().fetch,
+    //   port,
+    //   websocket: {
+    //     message: () => {}, // Required but not used
+    //   },
+    // });
 
-    console.log(`🚀 Webhook server running on http://localhost:${port}`);
+    // console.log(`🚀 Webhook server running on http://localhost:${port}`);
 
     // Connect WebSocket
     await this.websocketService.connect();

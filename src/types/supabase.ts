@@ -33,6 +33,33 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_commands: {
+        Row: {
+          channel_id: string
+          created_at: string
+          created_by: string
+          id: string
+          response: string
+          trigger: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          response: string
+          trigger: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          response?: string
+          trigger?: string
+        }
+        Relationships: []
+      }
       minecraft_players: {
         Row: {
           created_at: string
@@ -160,7 +187,6 @@ export type Database = {
           created_at: string | null
           email: string
           id: string
-          is_approved: boolean
           updated_at: string | null
           username: string | null
         }
@@ -168,7 +194,6 @@ export type Database = {
           created_at?: string | null
           email: string
           id: string
-          is_approved?: boolean
           updated_at?: string | null
           username?: string | null
         }
@@ -176,9 +201,38 @@ export type Database = {
           created_at?: string | null
           email?: string
           id?: string
-          is_approved?: boolean
           updated_at?: string | null
           username?: string | null
+        }
+        Relationships: []
+      }
+      websocket_logs: {
+        Row: {
+          connection_id: string | null
+          created_at: string
+          event_type: string
+          extra: string | null
+          id: string
+          message: Json
+          shard_id: string | null
+        }
+        Insert: {
+          connection_id?: string | null
+          created_at?: string
+          event_type: string
+          extra?: string | null
+          id?: string
+          message: Json
+          shard_id?: string | null
+        }
+        Update: {
+          connection_id?: string | null
+          created_at?: string
+          event_type?: string
+          extra?: string | null
+          id?: string
+          message?: Json
+          shard_id?: string | null
         }
         Relationships: []
       }
@@ -308,19 +362,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-
-export interface TwitchIntegration {
-  id: string;
-  twitch_user_id: string;
-  user_id: string;
-  access_token: string;
-  refresh_token: string;
-  expires_at: string | null;
-  username: string;
-  broadcaster_type: string | null;
-  profile_image_url: string | null;
-  is_live: boolean;
-  created_at: string | null;
-  updated_at: string | null;
-  scopes?: string[];
-}

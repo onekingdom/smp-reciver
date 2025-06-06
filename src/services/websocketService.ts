@@ -1,9 +1,9 @@
-import type { TwitchEventSubMessage, EventSubscription } from "../types/twitch.js";
+import type { TwitchEventSubMessage, EventSubscription, EventSubNotification } from "../types/twitch.js";
 import { TwitchApiService } from "./twitchApi.js";
-import { EventHandler } from "../handlers/eventHandler.js";
+import { HandlerRegistry } from "../handlers/eventHandler.js";
 import { env, type Env } from "../config/config.js";
 import { TwitchEventSubClient } from "./twitch/eventsub.js";
-import { getTwitchIntegration } from "../lib/supabase.js";
+import { getTwitchIntegration, logWebSocketEvent } from "../lib/supabase.js";
 import { AxiosError } from "axios";
 
 export class WebSocketService {
@@ -16,22 +16,20 @@ export class WebSocketService {
   private missedKeepalives: number = 0;
   private readonly MAX_MISSED_KEEPALIVES = 3;
   private twitchApi: TwitchApiService;
-  private eventHandler: EventHandler;
   private broadcasterId: string;
   private eventSubClient: TwitchEventSubClient;
   private conduitId: string | null = null;
+  private handlerRegistry: HandlerRegistry;
 
-  constructor(private config: Env) {
+  constructor(private config: Env, private wsUrl: string = "wss://eventsub.wss.twitch.tv/ws") {
     this.twitchApi = new TwitchApiService(config);
-    this.eventHandler = new EventHandler();
     this.broadcasterId = "122604941";
     this.eventSubClient = new TwitchEventSubClient(config);
     this.conduitId = env.TWITCH_CONDUIT_ID;
+    this.handlerRegistry = new HandlerRegistry();
   }
 
   async connect(): Promise<void> {
-    const wsUrl = "wss://eventsub.wss.twitch.tv/ws";
-
     try {
       console.log("🔌 Connecting to Twitch EventSub WebSocket...");
 
@@ -45,7 +43,7 @@ export class WebSocketService {
         }
       }
 
-      this.ws = new WebSocket(wsUrl);
+      this.ws = new WebSocket(this.wsUrl);
 
       this.ws.onopen = () => {
         console.log("✅ WebSocket connected");
@@ -60,20 +58,7 @@ export class WebSocketService {
         }
       };
 
-      this.ws.onclose = (event) => {
-        console.log("🔌 WebSocket closed:", event.code, event.reason);
-
-        // Clear keepalive timer
-        if (this.keepaliveTimer) {
-          clearTimeout(this.keepaliveTimer);
-          this.keepaliveTimer = null;
-        }
-
-        // Attempt reconnection
-        if (this.reconnectUrl) {
-          setTimeout(() => this.reconnect(), 5000);
-        }
-      };
+      this.ws.onclose = (event) => this.handleClose(event);
 
       this.ws.onerror = (error) => {
         console.error("❌ WebSocket error:", error);
@@ -108,15 +93,7 @@ export class WebSocketService {
       }
     };
 
-    this.ws.onclose = (event) => {
-      console.log("🔌 WebSocket closed:", event.code, event.reason);
-      
-      // Clear keepalive timer
-      if (this.keepaliveTimer) {
-        clearTimeout(this.keepaliveTimer);
-        this.keepaliveTimer = null;
-      }
-    };
+    this.ws.onclose = (event) => this.handleClose(event);
   }
 
   private startKeepaliveTimer(timeoutSeconds: number): void {
@@ -128,11 +105,11 @@ export class WebSocketService {
     // Set timeout to check for missed keepalives
     // Add some buffer for network delays
     const checkInterval = (timeoutSeconds + 2) * 1000;
-    
+
     this.keepaliveTimer = setTimeout(() => {
       this.checkKeepalive();
     }, checkInterval);
-    
+
     console.log(`⏰ Keepalive timer set to check every ${checkInterval / 1000} seconds`);
   }
 
@@ -140,19 +117,23 @@ export class WebSocketService {
     const now = Date.now();
     const timeSinceLastKeepalive = now - this.lastKeepaliveTime;
     const expectedInterval = this.keepaliveInterval * 1000;
-    
+
     // If we haven't received a keepalive in the expected time (plus buffer)
     if (timeSinceLastKeepalive > expectedInterval + 2000) {
       this.missedKeepalives++;
-      console.log(`⚠️ Missed keepalive ${this.missedKeepalives}/${this.MAX_MISSED_KEEPALIVES} - ${Math.round(timeSinceLastKeepalive / 1000)}s since last keepalive`);
-      
+      console.log(
+        `⚠️ Missed keepalive ${this.missedKeepalives}/${this.MAX_MISSED_KEEPALIVES} - ${Math.round(
+          timeSinceLastKeepalive / 1000
+        )}s since last keepalive`
+      );
+
       if (this.missedKeepalives >= this.MAX_MISSED_KEEPALIVES) {
         console.log("🔌 Closing connection - too many missed keepalives");
         this.ws?.close();
         return;
       }
     }
-    
+
     // Continue checking
     const nextCheckIn = this.keepaliveInterval * 1000;
     this.keepaliveTimer = setTimeout(() => {
@@ -162,6 +143,17 @@ export class WebSocketService {
 
   private async handleMessage(message: TwitchEventSubMessage): Promise<void> {
     const { metadata, payload } = message;
+    // Determine shard_id if available (from payload.subscription?.transport?.shard_id)
+    let shard_id: string | undefined = undefined;
+
+    // Log the event
+    await logWebSocketEvent({
+      event_type: metadata.message_type,
+      message,
+      shard_id,
+      connection_id: this.sessionId || undefined,
+      extra: undefined,
+    });
     switch (metadata.message_type) {
       case "session_welcome":
         console.log("👋 Session welcome received");
@@ -176,14 +168,10 @@ export class WebSocketService {
         // Update conduit shards with the new session ID
         if (this.conduitId && this.sessionId) {
           try {
-            await this.eventSubClient.updateAllShardTransports(
-              this.conduitId,
-              {
-                method: "websocket",
-                session_id: this.sessionId,
-              },
-             
-            );
+            await this.eventSubClient.updateAllShardTransports(this.conduitId, {
+              method: "websocket",
+              session_id: this.sessionId,
+            });
             console.log(`✅ Updated conduit ${this.conduitId} shards with new session ID`);
           } catch (error) {
             console.error("❌ Failed to update conduit shards with session ID:", error);
@@ -193,10 +181,9 @@ export class WebSocketService {
         break;
 
       case "session_keepalive":
-        console.log("💓 Keepalive received");
         this.lastKeepaliveTime = Date.now();
         this.missedKeepalives = 0; // Reset missed counter
-        
+
         // Update keepalive interval if provided
         if (payload.session?.keepalive_timeout_seconds) {
           this.keepaliveInterval = payload.session.keepalive_timeout_seconds;
@@ -204,13 +191,14 @@ export class WebSocketService {
         break;
 
       case "notification":
-        console.log("📨 WebSocket notification received:", {
-          type: metadata.subscription_type,
-          subscription_id: payload.subscription?.id,
-        });
+        const event = {
+          metadata,
+          payload,
+        } as EventSubNotification;
+  
 
         if (metadata.subscription_type && payload.event) {
-          await this.eventHandler.handleEvent(metadata.subscription_type, payload.event);
+          await this.handlerRegistry.processTwitchEvent(metadata.subscription_type, event);
         }
         break;
 
@@ -218,12 +206,165 @@ export class WebSocketService {
         console.log("🔄 Session reconnect requested");
         this.reconnectUrl = payload.session?.reconnect_url || null;
         if (this.reconnectUrl) {
-          this.ws?.close();
+          console.log("🔄 Will reconnect to new URL in 5 seconds...");
+          // Give a small delay to ensure any pending messages are processed
+          setTimeout(() => {
+            console.log("🔄 Closing current connection to reconnect...");
+            this.ws?.close();
+          }, 5000);
+        } else {
+          console.error("❌ Reconnect URL not provided in session_reconnect message");
+        }
+        break;
+
+      case "revocation":
+        console.log("⚠️ Subscription revoked:", {
+          type: metadata.subscription_type,
+          subscriptionId: payload.subscription?.id,
+          status: payload.subscription?.status,
+          reason: this.getRevocationReason(payload.subscription?.status),
+        });
+
+        // Handle different revocation reasons
+        switch (payload.subscription?.status) {
+          case "user_removed":
+            console.log("❌ User no longer exists");
+            break;
+          case "authorization_revoked":
+            console.log("❌ Authorization token was revoked");
+            // You might want to trigger a re-authentication flow here
+            break;
+          case "version_removed":
+            console.log("❌ Subscription type/version no longer supported");
+            break;
+          default:
+            console.log("❌ Unknown revocation reason");
         }
         break;
 
       default:
         console.log("❓ Unknown message type:", metadata.message_type);
+    }
+  }
+
+  private getRevocationReason(status: string | undefined): string {
+    switch (status) {
+      case "user_removed":
+        return "The user no longer exists";
+      case "authorization_revoked":
+        return "The authorization token was revoked";
+      case "version_removed":
+        return "The subscription type/version is no longer supported";
+      default:
+        return "Unknown reason";
+    }
+  }
+
+  private getCloseReason(code: number): string {
+    switch (code) {
+      case 4000:
+        return "Internal server error";
+      case 4001:
+        return "Client sent inbound traffic";
+      case 4002:
+        return "Client failed ping-pong";
+      case 4003:
+        return "Connection unused";
+      case 4004:
+        return "Reconnect grace time expired";
+      case 4005:
+        return "Network timeout";
+      case 4006:
+        return "Network error";
+      case 4007:
+        return "Invalid reconnect URL";
+      case 1000:
+        return "Normal closure";
+      default:
+        return "Unknown close code";
+    }
+  }
+
+  private async handleClose(event: CloseEvent): Promise<void> {
+    const closeCode = event.code;
+    const closeReason = this.getCloseReason(closeCode);
+    // Log the close event
+    await logWebSocketEvent({
+      event_type: "close",
+      message: {
+        code: closeCode,
+        reason: closeReason,
+        details: event.reason || "No reason provided",
+      },
+      shard_id: undefined,
+      connection_id: this.sessionId || undefined,
+      extra: undefined,
+    });
+
+    // Clear keepalive timer
+    if (this.keepaliveTimer) {
+      clearTimeout(this.keepaliveTimer);
+      this.keepaliveTimer = null;
+    }
+
+    // Handle specific close codes
+    switch (closeCode) {
+      case 4000:
+        console.error("❌ Internal server error - Twitch's servers encountered an error");
+        // Attempt reconnection after a delay
+        setTimeout(() => this.connect(), 5000);
+        break;
+
+      case 4001:
+        console.error("❌ Client sent inbound traffic - Sending messages to Twitch is not allowed");
+        // Don't reconnect as this is a client error
+        break;
+
+      case 4002:
+        console.error("❌ Client failed ping-pong - Keepalive response was not received");
+        // Attempt reconnection after a delay
+        setTimeout(() => this.connect(), 5000);
+        break;
+
+      case 4003:
+        console.error("❌ Connection unused - No subscriptions were created within the time limit");
+        // Attempt reconnection and ensure subscriptions are created
+        setTimeout(async () => {
+          await this.connect();
+          await this.subscribeToEvents();
+        }, 5000);
+        break;
+
+      case 4004:
+        console.error("❌ Reconnect grace time expired - Failed to reconnect within 30 seconds");
+        // Attempt a fresh connection
+        setTimeout(() => this.connect(), 5000);
+        break;
+
+      case 4005:
+        console.error("❌ Network timeout - Transient network issue");
+        // Attempt reconnection after a delay
+        setTimeout(() => this.connect(), 5000);
+        break;
+
+      case 4006:
+        console.error("❌ Network error - Transient network issue");
+        // Attempt reconnection after a delay
+        setTimeout(() => this.connect(), 5000);
+        break;
+
+      case 4007:
+        console.error("❌ Invalid reconnect URL - The provided reconnect URL was invalid");
+        // Attempt a fresh connection
+        setTimeout(() => this.connect(), 5000);
+        break;
+
+      default:
+        console.log("ℹ️ Normal closure or unknown close code");
+        // For normal closure (1000) or unknown codes, attempt reconnection if we have a reconnect URL
+        if (this.reconnectUrl) {
+          setTimeout(() => this.reconnect(), 5000);
+        }
     }
   }
 
@@ -425,7 +566,7 @@ export class WebSocketService {
 
       // Verify shards are enabled
       const enabledData = await this.eventSubClient.getConduitWithShards(this.conduitId, this.broadcasterId);
-      
+
       if (!enabledData) {
         throw new Error(`Failed to verify conduit ${this.conduitId} shard status`);
       }
@@ -446,13 +587,10 @@ export class WebSocketService {
       // Update shards with WebSocket transport
       if (this.sessionId) {
         console.log(`🔄 Updating conduit ${this.conduitId} shards with WebSocket transport...`);
-        await this.eventSubClient.updateAllShardTransports(
-          this.conduitId,
-          {
-            method: "websocket",
-            session_id: this.sessionId,
-          },
-        );
+        await this.eventSubClient.updateAllShardTransports(this.conduitId, {
+          method: "websocket",
+          session_id: this.sessionId,
+        });
         console.log(`✅ Updated conduit ${this.conduitId} shards with WebSocket transport`);
 
         // Wait a moment for transport updates to take effect
@@ -496,7 +634,7 @@ export class WebSocketService {
       clearTimeout(this.keepaliveTimer);
       this.keepaliveTimer = null;
     }
-    
+
     if (this.ws) {
       this.ws.close();
       this.ws = null;

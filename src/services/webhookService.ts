@@ -2,16 +2,13 @@
 import { Hono } from 'hono';
 import type { TwitchWebhookEvent } from '../types/twitch.js';
 import { verifyWebhookSignature } from '../utils/crypto.js';
-import { EventHandler } from '../handlers/eventHandler.js';
 import type { Env } from '../config/config.js';
 
 export class WebhookService {
   private app: Hono;
-  private eventHandler: EventHandler;
 
   constructor(private config: Env) {
     this.app = new Hono();
-    this.eventHandler = new EventHandler();
     this.setupRoutes();
   }
 
@@ -55,7 +52,7 @@ export class WebhookService {
             });
             
             if (event.event) {
-              await this.eventHandler.handleEvent(event.subscription.type, event.event);
+              // await this.eventHandler.handleEvent(event.subscription.type, event.event);
             }
             return c.text('OK');
 

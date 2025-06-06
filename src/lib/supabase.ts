@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { env } from "../config/config.js";
 import axios from "axios";
-import { Database } from "../types/supabase";
+import type { Database } from "../types/supabase";
 import { supabase } from "../utils/supabase";
 
 export type TwitchIntegration = Database["public"]["Tables"]["twitch_integration"]["Row"] & {
@@ -65,14 +65,11 @@ export async function refreshTwitchToken(channelId: string): Promise<TwitchInteg
   }
 }
 
-export async function getTwitchAppToken(){
-  const { data, error } = await supabase
-    .from('twitch_app_token')
-    .select('access_token, expires_at')
-    .single();
+export async function getTwitchAppToken() {
+  const { data, error } = await supabase.from("twitch_app_token").select("access_token, expires_at").single();
 
   if (error) {
-    console.error('Error fetching app token:', error);
+    console.error("Error fetching app token:", error);
     return null;
   }
 
@@ -80,21 +77,63 @@ export async function getTwitchAppToken(){
 }
 
 export async function updateTwitchAppToken(token: string, expiresAt: number): Promise<boolean> {
-  const { error } = await supabase
-    .from('twitch_app_token')
-    .upsert({
+  const { error } = await supabase.from("twitch_app_token").upsert(
+    {
       id: 1, // We'll use a single row for the app token
       access_token: token,
       expires_at: new Date(expiresAt).toISOString(),
-      updated_at: new Date().toISOString()
-    }, {
-      onConflict: 'id'
-    });
+      updated_at: new Date().toISOString(),
+    },
+    {
+      onConflict: "id",
+    }
+  );
 
   if (error) {
-    console.error('Error updating app token:', error);
+    console.error("Error updating app token:", error);
     return false;
   }
 
   return true;
+}
+
+export async function logWebSocketEvent({
+  event_type,
+  message,
+  shard_id,
+  connection_id,
+  extra,
+}: {
+  event_type: string;
+  message: any;
+  shard_id?: string;
+  connection_id?: string;
+  extra?: string;
+}): Promise<boolean> {
+  // NOTE: Remove generics for now due to typegen mismatch. Run Supabase typegen for full type safety.
+  const { error } = await supabase.from("websocket_logs").insert([
+    {
+      event_type,
+      message,
+      shard_id: shard_id ?? null,
+      connection_id: connection_id ?? null,
+      extra: extra ?? null,
+    },
+  ]);
+  if (error) {
+    console.error("Error logging websocket event:", error);
+    return false;
+  }
+  return true;
+}
+
+export async function getCommand(channelId: string, trigger: string) {
+  const { data, error } = await supabase.from("chat_commands").select("*").eq("channel_id", channelId).eq("trigger", trigger).single();
+  if (error) return null;
+  return data;
+}
+
+export async function addCommand(channelId: string, trigger: string, response: string, createdBy: string) {
+  const { error } = await supabase.from("chat_commands").insert([{ channel_id: channelId, trigger, response, created_by: createdBy }]);
+  return !error;
 }
