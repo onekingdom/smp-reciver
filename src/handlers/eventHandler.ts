@@ -3,25 +3,25 @@ import type { EventSubNotification, subscription_type } from "../types/twitch";
 // import type { IncommingMessageType } from "../types/websocket";
 import { z } from "zod";
 import { registerTwitchHandlers } from "./twitch";
-import { TwitchApiService } from "@/services/twitchApi";
+import { TwitchApi } from "@/services/twitchApi";
 
 export class HandlerRegistry {
-  private twitchHandlers = new Map<string, (data: unknown) => Promise<void>>();
+  private twitchHandlers = new Map<string, (data: unknown, twitchApi: TwitchApi) => Promise<void>>();
   private clientHandlers = new Map<string, (data: unknown) => Promise<unknown>>();
 
-  private twitchApiService: TwitchApiService;
+  private twitchApi: TwitchApi;
 
   constructor(broadcaster_id: string | null = null) {
     registerTwitchHandlers(this);
-    this.twitchApiService = new TwitchApiService(broadcaster_id);
+    this.twitchApi = new TwitchApi(broadcaster_id);
   }
 
   // Register Twitch EventSub handler
-  registerTwitchHandler<T = unknown>(eventType: subscription_type, handler: (data: T) => Promise<void>, schema?: z.ZodType<T>) {
+  registerTwitchHandler<T = unknown>(eventType: subscription_type, handler: (data: T, twitchApi: TwitchApi) => Promise<void>, schema?: z.ZodType<T>) {
     this.twitchHandlers.set(eventType, async (data: unknown) => {
       try {
         const parsedData = schema ? schema.parse(data) : data;
-        await handler(parsedData as T);
+        await handler(parsedData as T, this.twitchApi);
       } catch (error) {
         console.log(error)
         // logger.error(`Twitch handler failed for ${eventType}`, error as Error);
@@ -60,9 +60,9 @@ export class HandlerRegistry {
     }
 
     try {
-      console.log(`Processing event type: ${eventType}`);
-      await handler(data.payload.event);
+      await handler(data.payload.event, this.twitchApi);
     } catch (error) {
+      console.log(error);
       throw error;
     }
   }

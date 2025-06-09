@@ -1,5 +1,5 @@
 import type { TwitchEventSubMessage, EventSubscription, EventSubNotification } from "../types/twitch.js";
-import { TwitchApiService } from "./twitchApi.js";
+import { TwitchApi } from "./twitchApi.js";
 import { HandlerRegistry } from "../handlers/eventHandler.js";
 import { env, type Env } from "../config/config.js";
 import { TwitchEventSubClient } from "./twitch/eventsub.js";
@@ -15,7 +15,7 @@ export class WebSocketService {
   private lastKeepaliveTime: number = Date.now();
   private missedKeepalives: number = 0;
   private readonly MAX_MISSED_KEEPALIVES = 3;
-  private twitchApi: TwitchApiService;
+  private twitchApi: TwitchApi;
 
   private eventSubClient: TwitchEventSubClient;
   private conduitId: string | null = null;
@@ -23,7 +23,7 @@ export class WebSocketService {
 
   constructor(private wsUrl: string = "wss://eventsub.wss.twitch.tv/ws") {
     this.conduitId = env.TWITCH_CONDUIT_ID;
-    this.twitchApi = new TwitchApiService();
+    this.twitchApi = new TwitchApi();
     this.handlerRegistry = new HandlerRegistry();
     this.eventSubClient = new TwitchEventSubClient();
   }

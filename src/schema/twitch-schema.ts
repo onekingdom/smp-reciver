@@ -99,7 +99,7 @@ export const ChatMessageSchema = z.object({
     text: z.string(),
     fragments: z.array(FragmentSchema),
   }),
-  color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/),
+  color: z.string(),
   badges: z.array(BadgeSchema),
   message_type: z.enum(["text", "reply", "action"]),
   cheer: z.nullable(

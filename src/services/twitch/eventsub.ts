@@ -1,5 +1,5 @@
 import { getTwitchIntegration } from "../../lib/supabase.js";
-import { TwitchApiService } from "../twitchApi.js";
+import { TwitchApiBaseClient } from "./base-client.js";
 
 export type TransportMethod = "webhook" | "websocket" | "conduit";
 
@@ -57,7 +57,7 @@ interface RequiredScopes {
   [key: string]: string[];
 }
 
-export class TwitchEventSubClient extends TwitchApiService {
+export class TwitchEventSubClient extends TwitchApiBaseClient {
   private readonly requiredScopes: RequiredScopes = {
     "channel.chat.message": ["moderator:read:chat_messages", "moderator:read:chatters"],
     "channel.follow": ["moderator:read:followers"],

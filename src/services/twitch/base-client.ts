@@ -9,21 +9,23 @@ interface TokenCache {
   expiresAt: number; // Store as timestamp in milliseconds
 }
 
-export class TwitchApiInterceptors {
-  private channelTokenCache: Map<string, TokenCache> = new Map();
-  private refreshInProgress: Map<string, Promise<string | null>> = new Map();
+export abstract class TwitchApiBaseClient {
   private readonly MAX_RETRIES = 2;
   private requestRetryCount: Map<string, number> = new Map();
-  private appTokenCache: TokenCache | null = null;
+  private broadcaster_id: string | null = null;
 
-  clientInterceptor(api: AxiosInstance, broadcaster_id: string): void {
+  constructor(broadcaster_id: string | null = null) {
+    this.broadcaster_id = broadcaster_id;
+  }
+
+  protected clientInterceptor(api: AxiosInstance): void {
     api.interceptors.request.use(
       async (config: InternalAxiosRequestConfig) => {
-        if (!broadcaster_id) {
+        if (!this.broadcaster_id) {
           throw new Error("Broadcaster ID is required in Twitch client interceptor");
         }
 
-        const token = await this.getChannelToken(broadcaster_id);
+        const token = await this.getChannelToken(this.broadcaster_id);
 
         config.headers["Client-Id"] = env.TWITCH_CLIENT_ID;
         config.headers["Content-Type"] = "application/json";
@@ -46,8 +48,11 @@ export class TwitchApiInterceptors {
         if (error.response?.status === 401 && retryCount < this.MAX_RETRIES) {
           try {
             this.requestRetryCount.set(requestId, retryCount + 1);
-            console.log("🔄 Token expired, attempting to refresh for broadcaster:", broadcaster_id);
-            const newToken = await this.refreshTokenAndRetry(broadcaster_id);
+            if (!this.broadcaster_id) {
+              throw new Error("Broadcaster ID is required in Twitch client interceptor");
+            }
+            console.log("🔄 Token expired, attempting to refresh for broadcaster:", this.broadcaster_id);
+            const newToken = await this.refreshTokenAndRetry(this.broadcaster_id);
             if (newToken) {
               config.headers = config.headers || {};
               config.headers["Authorization"] = `Bearer ${newToken}`;
@@ -69,7 +74,7 @@ export class TwitchApiInterceptors {
     );
   }
 
-  appInterceptor(api: AxiosInstance): void {
+  protected appInterceptor(api: AxiosInstance): void {
     api.interceptors.request.use(
       async (config: InternalAxiosRequestConfig) => {
         const token = await this.getAppAccessToken();
@@ -85,18 +90,24 @@ export class TwitchApiInterceptors {
     );
   }
 
+  protected clientApi(): AxiosInstance {
+    const api = axios.create({
+      baseURL: "https://api.twitch.tv/helix",
+    });
+    this.clientInterceptor(api);
+    return api;
+  }
+
+  protected appApi(): AxiosInstance {
+    const api = axios.create({
+      baseURL: "https://api.twitch.tv/helix",
+    });
+    this.appInterceptor(api);
+    return api;
+  }
+
   private async getChannelToken(channelId: string): Promise<string | null> {
     // Check cache first
-    const cached = this.channelTokenCache.get(channelId);
-    if (cached && cached.expiresAt > Date.now()) {
-      return cached.token;
-    }
-
-    // Check if a refresh is already in progress
-    const inProgress = this.refreshInProgress.get(channelId);
-    if (inProgress) {
-      return inProgress;
-    }
 
     // Fetch from Supabase
     const integration = await getTwitchIntegration(channelId);
@@ -104,21 +115,10 @@ export class TwitchApiInterceptors {
       return null;
     }
 
-    // Cache the token (convert expires_at to milliseconds if it's not already)
-    this.channelTokenCache.set(channelId, {
-      token: integration.access_token,
-      expiresAt: typeof integration.expires_at === "string" ? new Date(integration.expires_at).getTime() : integration.expires_at,
-    });
-
     return integration.access_token;
   }
-
   private async refreshTokenAndRetry(channelId: string): Promise<string | null> {
     // Check if a refresh is already in progress
-    const inProgress = this.refreshInProgress.get(channelId);
-    if (inProgress) {
-      return inProgress;
-    }
 
     // Create a new refresh promise
     const refreshPromise = (async () => {
@@ -129,37 +129,21 @@ export class TwitchApiInterceptors {
         }
 
         // Update cache (convert expires_at to milliseconds if it's not already)
-        this.channelTokenCache.set(channelId, {
-          token: integration.access_token,
-          expiresAt: typeof integration.expires_at === "string" ? new Date(integration.expires_at).getTime() : integration.expires_at,
-        });
 
         return integration.access_token;
       } finally {
-        // Clean up the in-progress promise
-        this.refreshInProgress.delete(channelId);
       }
     })();
 
-    // Store the promise
-    this.refreshInProgress.set(channelId, refreshPromise);
     return refreshPromise;
   }
   private async getAppAccessToken(): Promise<string> {
-    // Check cache first
-    if (this.appTokenCache && this.appTokenCache.expiresAt > Date.now()) {
-      return this.appTokenCache.token;
-    }
-
     try {
       // Try to get token from Supabase
       const storedToken = await getTwitchAppToken();
       if (storedToken && storedToken.expires_at && parseInt(storedToken.expires_at) > Date.now()) {
         // Cache the token from Supabase
-        this.appTokenCache = {
-          token: storedToken.access_token ?? "",
-          expiresAt: parseInt(storedToken.expires_at),
-        };
+
         return storedToken.access_token ?? "";
       }
 
@@ -174,12 +158,6 @@ export class TwitchApiInterceptors {
 
       const { access_token, expires_in } = response.data;
       const expiresAt = Date.now() + expires_in * 1000;
-
-      // Cache the token
-      this.appTokenCache = {
-        token: access_token,
-        expiresAt,
-      };
 
       // Store in Supabase
       await updateTwitchAppToken(access_token, expiresAt);

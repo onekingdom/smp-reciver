@@ -8,6 +8,7 @@ const twitchConfigSchema = z.object({
   WEBHOOK_PORT: z.string().min(1, "WEBHOOK_PORT is required"),
   SUPABASE_URL: z.string().url("SUPABASE_URL must be a valid URL"),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, "SUPABASE_SERVICE_ROLE_KEY is required"),
+  NODE_ENV: z.enum(["development", "production"]).default("development"),
 });
 
 const result = twitchConfigSchema.safeParse(process.env);

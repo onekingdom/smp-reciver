@@ -1,6 +1,6 @@
 import type { HandlerRegistry } from "./eventHandler";
 import * as TwitchSchema from "../schema/twitch-schema";
-import { handleChatMessage } from "../functions/commands/handle-chat-message";
+import { handleChatMessage } from "../functions/eventsub/handle-chat-message";
 
 export const registerTwitchHandlers = (handlers: HandlerRegistry) => {
   // stream online
@@ -41,8 +41,8 @@ export const registerTwitchHandlers = (handlers: HandlerRegistry) => {
   // chat message
   handlers.registerTwitchHandler(
     "channel.chat.message",
-    async (event) => {
-      await handleChatMessage(event);
+    async (event, twitchApi) => {
+      await handleChatMessage(event, twitchApi);
     },
     TwitchSchema.ChatMessageSchema
   );
