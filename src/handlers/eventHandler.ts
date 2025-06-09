@@ -1,4 +1,3 @@
-// src/lib/handlers/index.ts
 import type { EventSubNotification, subscription_type } from "../types/twitch";
 // import type { IncommingMessageType } from "../types/websocket";
 import { z } from "zod";
