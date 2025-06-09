@@ -3,13 +3,17 @@ import type { EventSubNotification, subscription_type } from "../types/twitch";
 // import type { IncommingMessageType } from "../types/websocket";
 import { z } from "zod";
 import { registerTwitchHandlers } from "./twitch";
+import { TwitchApiService } from "@/services/twitchApi";
 
 export class HandlerRegistry {
   private twitchHandlers = new Map<string, (data: unknown) => Promise<void>>();
   private clientHandlers = new Map<string, (data: unknown) => Promise<unknown>>();
 
-  constructor() {
+  private twitchApiService: TwitchApiService;
+
+  constructor(broadcaster_id: string | null = null) {
     registerTwitchHandlers(this);
+    this.twitchApiService = new TwitchApiService(broadcaster_id);
   }
 
   // Register Twitch EventSub handler
@@ -64,4 +68,3 @@ export class HandlerRegistry {
   }
 }
 
-export const handlers = new HandlerRegistry();

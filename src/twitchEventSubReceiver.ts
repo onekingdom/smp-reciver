@@ -10,7 +10,7 @@ export class TwitchEventSubReceiver {
 
   constructor(private config: Env) {
     this.webhookService = new WebhookService(config);
-    this.websocketService = new WebSocketService(config);
+    this.websocketService = new WebSocketService();
   }
 
   async start(): Promise<void> {

@@ -1,8 +1,8 @@
-import { BaseTwitchClient } from "./base-client";
+import { TwitchApiService } from "../twitchApi.js";
 
-export class TwitchChatClient extends BaseTwitchClient {
+export class TwitchChatClient extends TwitchApiService {
   async sendMessage(message: string, channelId: string, replyToMessageId?: string) {
-    const response = await this.api.post(`/chat/messages`, {
+    const response = await this.appApi().post(`/chat/messages`, {
       message,
       broadcaster_id: channelId,
       sender_id: "900954624",

@@ -6,54 +6,43 @@ import { TwitchApiInterceptors } from "./twitch/base-client.js";
 export class TwitchApiService {
   private api: AxiosInstance;
   private interceptors: TwitchApiInterceptors;
+  protected broadcaster_id: string | null = null;
 
-  constructor(private config: Env) {
+  constructor(broadcaster_id: string | null = null) {
+    this.broadcaster_id = broadcaster_id;
+
     this.api = axios.create({
       baseURL: "https://api.twitch.tv/helix",
     });
 
     // Initialize and apply interceptors
-    this.interceptors = new TwitchApiInterceptors(config);
-    this.interceptors.applyInterceptors(this.api);
+    this.interceptors = new TwitchApiInterceptors();
+    this.interceptors.appInterceptor(this.api);
   }
 
   // Helper method to create a channel-specific API instance
-  withChannel(channelId: string): AxiosInstance {
+  clientApi(): AxiosInstance {
+    if (!this.broadcaster_id) {
+      throw new Error("Broadcaster ID is required");
+    }
+
     const channelApi = axios.create({
-      baseURL: this.api.defaults.baseURL,
-      headers: {
-        "X-Channel-Id": channelId,
-      },
+      baseURL: this.api.defaults.baseURL, 
     });
 
     // Apply the same interceptors to the channel-specific instance
-    this.interceptors.applyInterceptors(channelApi);
+    this.interceptors.clientInterceptor(channelApi, this.broadcaster_id);
     return channelApi;
   }
 
-  async createSubscription(subscription: EventSubscription, sessionId: string, channelId?: string): Promise<string> {
-    const api = channelId ? this.withChannel(channelId) : this.api;
-    const response = await api.post("/eventsub/subscriptions", {
-      type: subscription.type,
-      version: subscription.version,
-      condition: subscription.condition,
-      transport: {
-        method: "conduit",
-        session_id: sessionId,
-      },
+  appApi(): AxiosInstance {
+    const appApi = axios.create({
+      baseURL: "https://api.twitch.tv/helix",
     });
 
-    return response.data.data[0]?.id;
+    this.interceptors.appInterceptor(appApi);
+    return appApi;
   }
 
-  async getSubscriptions(channelId?: string): Promise<any[]> {
-    const api = channelId ? this.withChannel(channelId) : this.api;
-    const response = await api.get("/eventsub/subscriptions");
-    return response.data.data;
-  }
 
-  async deleteSubscription(subscriptionId: string, channelId?: string): Promise<void> {
-    const api = channelId ? this.withChannel(channelId) : this.api;
-    await api.delete(`/eventsub/subscriptions?id=${subscriptionId}`);
-  }
 }

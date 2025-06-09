@@ -1,6 +1,5 @@
-import type { Env } from "../../config/config.js";
-import { BaseTwitchClient } from "./base-client.js";
 import { getTwitchIntegration } from "../../lib/supabase.js";
+import { TwitchApiService } from "../twitchApi.js";
 
 export type TransportMethod = "webhook" | "websocket" | "conduit";
 
@@ -58,7 +57,7 @@ interface RequiredScopes {
   [key: string]: string[];
 }
 
-export class TwitchEventSubClient extends BaseTwitchClient {
+export class TwitchEventSubClient extends TwitchApiService {
   private readonly requiredScopes: RequiredScopes = {
     "channel.chat.message": ["moderator:read:chat_messages", "moderator:read:chatters"],
     "channel.follow": ["moderator:read:followers"],
@@ -108,32 +107,32 @@ export class TwitchEventSubClient extends BaseTwitchClient {
     //   throw new Error(`Missing required scopes for subscription type ${options.type}`);
     // }
 
-    const response = await this.api.post("/eventsub/subscriptions", options);
+    const response = await this.appApi().post("/eventsub/subscriptions", options);
     return response.data;
   }
 
   async deleteSubscription(subscriptionId: string, channelId: string): Promise<void> {
-    await this.api.delete(`/eventsub/subscriptions?id=${subscriptionId}`);
+    await this.appApi().delete(`/eventsub/subscriptions?id=${subscriptionId}`);
   }
 
   async getSubscriptions(channelId: string): Promise<{ data: EventSubSubscription[] }> {
-    const response = await this.api.get("/eventsub/subscriptions");
+    const response = await this.appApi().get("/eventsub/subscriptions");
     return response.data;
   }
 
   // Conduit-specific methods
-  async createConduit(options: CreateConduitOptions, channelId: string): Promise<{ data: Conduit[] }> {
-    const response = await this.api.post("/eventsub/conduits", options);
+  async createConduit(options: CreateConduitOptions): Promise<{ data: Conduit[] }> {
+    const response = await this.appApi().post("/eventsub/conduits", options);
     return response.data;
   }
 
   async getConduits(): Promise<{ data: Conduit[] }> {
-    const response = await this.api.get("/eventsub/conduits");
+    const response = await this.appApi().get("/eventsub/conduits");
     return response.data;
   }
 
   async getConduitShards(conduitId: string, ): Promise<{ data: ConduitShard[] }> {
-    const response = await this.api.get("/eventsub/conduits/shards", {
+    const response = await this.appApi().get("/eventsub/conduits/shards", {
       params: {
         conduit_id: conduitId,
       },
@@ -141,7 +140,7 @@ export class TwitchEventSubClient extends BaseTwitchClient {
     return response.data;
   }
 
-  async getConduitWithShards(conduitId: string, channelId: string): Promise<Conduit | null> {
+  async getConduitWithShards(conduitId: string): Promise<Conduit | null> {
     try {
       const [conduitResponse, shardsResponse] = await Promise.all([this.getConduits(), this.getConduitShards(conduitId)]);
 
@@ -160,8 +159,8 @@ export class TwitchEventSubClient extends BaseTwitchClient {
     }
   }
 
-  async updateConduitShards(conduitId: string, shardCount: number, channelId: string): Promise<{ data: Conduit[] }> {
-    const response = await this.api.patch(`/eventsub/conduits/${conduitId}/shards`, {
+  async updateConduitShards(conduitId: string, shardCount: number): Promise<{ data: Conduit[] }> {
+    const response = await this.appApi().patch(`/eventsub/conduits/${conduitId}/shards`, {
       shard_count: shardCount,
     });
     return response.data;
@@ -182,7 +181,7 @@ export class TwitchEventSubClient extends BaseTwitchClient {
   async updateShardTransport(conduitId: string, shardId: string, transport: Transport): Promise<{ data: Conduit[] }> {
     console.log("Updating shard transport:", { conduitId, shardId, transport });
 
-    const response = await this.api.patch("/eventsub/conduits/shards", {
+    const response = await this.appApi().patch("/eventsub/conduits/shards", {
       conduit_id: conduitId,
       shards: [
         {
@@ -194,8 +193,8 @@ export class TwitchEventSubClient extends BaseTwitchClient {
     return response.data;
   }
 
-  async deleteConduit(conduitId: string, channelId: string): Promise<void> {
-    await this.api.delete(`/eventsub/conduits/${conduitId}`);
+  async deleteConduit(conduitId: string, ): Promise<void> {
+    await this.appApi().delete(`/eventsub/conduits/${conduitId}`);
   }
 
   // Helper method to create a subscription with conduit transport
@@ -248,10 +247,10 @@ export class TwitchEventSubClient extends BaseTwitchClient {
     return subscriptions;
   }
 
-  async updateShardStatus(conduitId: string, shardId: string, status: "enabled" | "disabled", channelId: string): Promise<{ data: ConduitShard[] }> {
+  async updateShardStatus(conduitId: string, shardId: string, status: "enabled" | "disabled"): Promise<{ data: ConduitShard[] }> {
     console.log("Updating shard status:");
 
-    const response = await this.api.patch("/eventsub/conduits/shards", {
+    const response = await this.appApi().patch("/eventsub/conduits/shards", {
       conduit_id: conduitId,
       shard_id: shardId,
       status,
@@ -260,13 +259,13 @@ export class TwitchEventSubClient extends BaseTwitchClient {
     return response.data;
   }
 
-  async enableAllShards(conduitId: string, channelId: string): Promise<void> {
-    const conduit = await this.getConduitWithShards(conduitId, channelId);
+  async enableAllShards(conduitId: string): Promise<void> {
+    const conduit = await this.getConduitWithShards(conduitId);
     if (!conduit || !conduit.shards) {
       throw new Error(`No shards found for conduit ${conduitId}`);
     }
 
     // Enable each shard
-    await Promise.all(conduit.shards.map((shard) => this.updateShardStatus(conduitId, shard.id, "enabled", channelId)));
+    await Promise.all(conduit.shards.map((shard) => this.updateShardStatus(conduitId, shard.id, "enabled")));
   }
 }

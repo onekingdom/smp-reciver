@@ -16,17 +16,16 @@ export class WebSocketService {
   private missedKeepalives: number = 0;
   private readonly MAX_MISSED_KEEPALIVES = 3;
   private twitchApi: TwitchApiService;
-  private broadcasterId: string;
+
   private eventSubClient: TwitchEventSubClient;
   private conduitId: string | null = null;
   private handlerRegistry: HandlerRegistry;
 
-  constructor(private config: Env, private wsUrl: string = "wss://eventsub.wss.twitch.tv/ws") {
-    this.twitchApi = new TwitchApiService(config);
-    this.broadcasterId = "122604941";
-    this.eventSubClient = new TwitchEventSubClient(config);
+  constructor(private wsUrl: string = "wss://eventsub.wss.twitch.tv/ws") {
     this.conduitId = env.TWITCH_CONDUIT_ID;
+    this.twitchApi = new TwitchApiService();
     this.handlerRegistry = new HandlerRegistry();
+    this.eventSubClient = new TwitchEventSubClient();
   }
 
   async connect(): Promise<void> {
@@ -195,7 +194,6 @@ export class WebSocketService {
           metadata,
           payload,
         } as EventSubNotification;
-  
 
         if (metadata.subscription_type && payload.event) {
           await this.handlerRegistry.processTwitchEvent(metadata.subscription_type, event);
@@ -331,7 +329,6 @@ export class WebSocketService {
         // Attempt reconnection and ensure subscriptions are created
         setTimeout(async () => {
           await this.connect();
-          await this.subscribeToEvents();
         }, 5000);
         break;
 
@@ -368,132 +365,132 @@ export class WebSocketService {
     }
   }
 
-  private async subscribeToEvents(): Promise<void> {
-    if (!this.conduitId) {
-      console.error("❌ Failed to initialize conduit for subscriptions");
-    }
+  // private async subscribeToEvents(): Promise<void> {
+  //   if (!this.conduitId) {
+  //     console.error("❌ Failed to initialize conduit for subscriptions");
+  //   }
 
-    // Verify we have a valid session ID
-    if (!this.sessionId) {
-      console.error("❌ Cannot create subscriptions: missing session ID");
-      return;
-    }
+  //   // Verify we have a valid session ID
+  //   if (!this.sessionId) {
+  //     console.error("❌ Cannot create subscriptions: missing session ID");
+  //     return;
+  //   }
 
-    console.log("🔄 Starting subscription creation process...");
-    const subscriptions: EventSubscription[] = [
-      {
-        type: "channel.chat.message",
-        version: "1",
-        condition: {
-          broadcaster_user_id: this.broadcasterId,
-          user_id: this.broadcasterId,
-        },
-      },
-    ];
+  //   console.log("🔄 Starting subscription creation process...");
+  //   const subscriptions: EventSubscription[] = [
+  //     {
+  //       type: "channel.chat.message",
+  //       version: "1",
+  //       condition: {
+  //         broadcaster_user_id: this.broadcasterId,
+  //         user_id: this.broadcasterId,
+  //       },
+  //     },
+  //   ];
 
-    // Get current conduit status with shards
-    const conduitData = await this.eventSubClient.getConduitWithShards(this.conduitId!, this.broadcasterId);
-    if (!conduitData) {
-      console.error(`❌ Conduit ${this.conduitId} not found or failed to get shards`);
-      return;
-    }
+  //   // Get current conduit status with shards
+  //   const conduitData = await this.eventSubClient.getConduitWithShards(this.conduitId!, this.broadcasterId);
+  //   if (!conduitData) {
+  //     console.error(`❌ Conduit ${this.conduitId} not found or failed to get shards`);
+  //     return;
+  //   }
 
-    // Verify we have enabled shards
-    const enabledShards = conduitData.shards.filter((s) => s.status === "enabled");
-    if (enabledShards.length === 0) {
-      console.error(`❌ No enabled shards found in conduit ${this.conduitId}`);
-      return;
-    }
+  //   // Verify we have enabled shards
+  //   const enabledShards = conduitData.shards.filter((s) => s.status === "enabled");
+  //   if (enabledShards.length === 0) {
+  //     console.error(`❌ No enabled shards found in conduit ${this.conduitId}`);
+  //     return;
+  //   }
 
-    console.log(`📊 Current conduit status:`, {
-      id: conduitData.id,
-      shardCount: conduitData.shard_count,
-      activeShards: enabledShards.length,
-      shardDetails: enabledShards.map((s) => ({
-        id: s.id,
-        status: s.status,
-        transport: s.transport,
-      })),
-    });
+  //   console.log(`📊 Current conduit status:`, {
+  //     id: conduitData.id,
+  //     shardCount: conduitData.shard_count,
+  //     activeShards: enabledShards.length,
+  //     shardDetails: enabledShards.map((s) => ({
+  //       id: s.id,
+  //       status: s.status,
+  //       transport: s.transport,
+  //     })),
+  //   });
 
-    // Group subscriptions by shard to distribute load
-    const shardGroups = this.groupSubscriptionsByShard(subscriptions, enabledShards.length);
-    console.log(`📊 Subscription distribution:`, {
-      totalSubscriptions: subscriptions.length,
-      availableShards: enabledShards.length,
-      shardGroups: shardGroups.map((group, i) => ({
-        shardIndex: i,
-        shardId: enabledShards[i]?.id,
-        subscriptionCount: group.length,
-        types: group.map((s) => s.type),
-      })),
-    });
+  //   // Group subscriptions by shard to distribute load
+  //   const shardGroups = this.groupSubscriptionsByShard(subscriptions, enabledShards.length);
+  //   console.log(`📊 Subscription distribution:`, {
+  //     totalSubscriptions: subscriptions.length,
+  //     availableShards: enabledShards.length,
+  //     shardGroups: shardGroups.map((group, i) => ({
+  //       shardIndex: i,
+  //       shardId: enabledShards[i]?.id,
+  //       subscriptionCount: group.length,
+  //       types: group.map((s) => s.type),
+  //     })),
+  //   });
 
-    for (const [shardIndex, shardSubscriptions] of shardGroups.entries()) {
-      const shard = enabledShards[shardIndex];
-      if (!shard) {
-        console.error(`❌ Shard index ${shardIndex} not found in enabled shards`);
-        continue;
-      }
+  //   for (const [shardIndex, shardSubscriptions] of shardGroups.entries()) {
+  //     const shard = enabledShards[shardIndex];
+  //     if (!shard) {
+  //       console.error(`❌ Shard index ${shardIndex} not found in enabled shards`);
+  //       continue;
+  //     }
 
-      console.log(`🔄 Processing shard ${shardIndex + 1} (${shard.id})...`);
+  //     console.log(`🔄 Processing shard ${shardIndex + 1} (${shard.id})...`);
 
-      // Create subscriptions for this shard
-      for (const subscription of shardSubscriptions) {
-        try {
-          console.log(`🔄 Creating subscription for ${subscription.type} in shard ${shardIndex + 1}...`);
-          const createdSubscription = await this.eventSubClient.createSubscription(
-            {
-              type: subscription.type,
-              version: subscription.version,
-              condition: subscription.condition,
-              transport: {
-                method: "conduit",
-                conduit_id: this.conduitId!,
-                shard_id: shard.id,
-              },
-            },
-            this.broadcasterId
-          );
+  //     // Create subscriptions for this shard
+  //     for (const subscription of shardSubscriptions) {
+  //       try {
+  //         console.log(`🔄 Creating subscription for ${subscription.type} in shard ${shardIndex + 1}...`);
+  //         const createdSubscription = await this.eventSubClient.createSubscription(
+  //           {
+  //             type: subscription.type,
+  //             version: subscription.version,
+  //             condition: subscription.condition,
+  //             transport: {
+  //               method: "conduit",
+  //               conduit_id: this.conduitId!,
+  //               shard_id: shard.id,
+  //             },
+  //           },
+  //           this.broadcasterId
+  //         );
 
-          console.log(`✅ Created subscription in shard ${shardIndex + 1}:`, {
-            type: subscription.type,
-            id: createdSubscription.data[0].id,
-            status: createdSubscription.data[0].status,
-          });
-        } catch (error) {
-          console.error(`❌ Failed to create subscription in shard ${shardIndex + 1} for ${subscription.type}:`, error);
-          if (error instanceof AxiosError && error.response) {
-            console.error("API Error details:", {
-              status: error.response.status,
-              data: error.response.data,
-            });
-          }
-          // Continue with next subscription instead of failing the entire shard
-        }
-      }
-    }
+  //         console.log(`✅ Created subscription in shard ${shardIndex + 1}:`, {
+  //           type: subscription.type,
+  //           id: createdSubscription.data[0].id,
+  //           status: createdSubscription.data[0].status,
+  //         });
+  //       } catch (error) {
+  //         console.error(`❌ Failed to create subscription in shard ${shardIndex + 1} for ${subscription.type}:`, error);
+  //         if (error instanceof AxiosError && error.response) {
+  //           console.error("API Error details:", {
+  //             status: error.response.status,
+  //             data: error.response.data,
+  //           });
+  //         }
+  //         // Continue with next subscription instead of failing the entire shard
+  //       }
+  //     }
+  //   }
 
-    // Verify final subscription status
-    try {
-      const finalSubscriptions = await this.eventSubClient.getSubscriptions(this.broadcasterId);
-      console.log(`📊 Final subscription status:`, {
-        totalSubscriptions: finalSubscriptions.data.length,
-        byStatus: finalSubscriptions.data.reduce((acc, sub) => {
-          acc[sub.status] = (acc[sub.status] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>),
-      });
-    } catch (error) {
-      console.error("❌ Failed to get final subscription status:", error);
-      if (error instanceof AxiosError && error.response) {
-        console.error("API Error details:", {
-          status: error.response.status,
-          data: error.response.data,
-        });
-      }
-    }
-  }
+  //   // Verify final subscription status
+  //   try {
+  //     const finalSubscriptions = await this.eventSubClient.getSubscriptions(this.broadcasterId);
+  //     console.log(`📊 Final subscription status:`, {
+  //       totalSubscriptions: finalSubscriptions.data.length,
+  //       byStatus: finalSubscriptions.data.reduce((acc, sub) => {
+  //         acc[sub.status] = (acc[sub.status] || 0) + 1;
+  //         return acc;
+  //       }, {} as Record<string, number>),
+  //     });
+  //   } catch (error) {
+  //     console.error("❌ Failed to get final subscription status:", error);
+  //     if (error instanceof AxiosError && error.response) {
+  //       console.error("API Error details:", {
+  //         status: error.response.status,
+  //         data: error.response.data,
+  //       });
+  //     }
+  //   }
+  // }
 
   private groupSubscriptionsByShard(subscriptions: EventSubscription[], shardCount: number): EventSubscription[][] {
     // Group subscriptions by type to ensure similar events go to the same shard
@@ -521,7 +518,7 @@ export class WebSocketService {
     try {
       // Create a conduit with 3 shards
       console.log("🔄 Creating conduit with 3 shards...");
-      const conduit = await this.eventSubClient.createConduit({ shard_count: 3 }, this.broadcasterId);
+      const conduit = await this.eventSubClient.createConduit({ shard_count: 3 });
       this.conduitId = conduit.data[0].id;
       console.log(`✅ Created conduit ${this.conduitId} with 3 shards`);
 
@@ -529,7 +526,7 @@ export class WebSocketService {
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Get conduit details with shards to verify
-      const conduitData = await this.eventSubClient.getConduitWithShards(this.conduitId, this.broadcasterId);
+      const conduitData = await this.eventSubClient.getConduitWithShards(this.conduitId);
       if (!conduitData) {
         throw new Error(`Failed to get conduit ${this.conduitId} with shards`);
       }
@@ -539,7 +536,7 @@ export class WebSocketService {
         console.log("⚠️ No shards found, waiting for shard creation...");
         // Wait longer and check again
         await new Promise((resolve) => setTimeout(resolve, 2000));
-        const retryData = await this.eventSubClient.getConduitWithShards(this.conduitId, this.broadcasterId);
+        const retryData = await this.eventSubClient.getConduitWithShards(this.conduitId);
         if (!retryData || !retryData.shards || retryData.shards.length === 0) {
           throw new Error(`Shards not created for conduit ${this.conduitId}`);
         }
@@ -558,14 +555,14 @@ export class WebSocketService {
 
       // Enable all shards
       console.log("🔄 Enabling conduit shards...");
-      await this.eventSubClient.enableAllShards(this.conduitId, this.broadcasterId);
+      await this.eventSubClient.enableAllShards(this.conduitId);
       console.log("✅ Enabled all conduit shards");
 
       // Wait a moment for shard status updates to take effect
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Verify shards are enabled
-      const enabledData = await this.eventSubClient.getConduitWithShards(this.conduitId, this.broadcasterId);
+      const enabledData = await this.eventSubClient.getConduitWithShards(this.conduitId);
 
       if (!enabledData) {
         throw new Error(`Failed to verify conduit ${this.conduitId} shard status`);
@@ -597,7 +594,7 @@ export class WebSocketService {
         await new Promise((resolve) => setTimeout(resolve, 1000));
 
         // Verify final conduit status
-        const finalData = await this.eventSubClient.getConduitWithShards(this.conduitId, this.broadcasterId);
+        const finalData = await this.eventSubClient.getConduitWithShards(this.conduitId);
         if (!finalData) {
           throw new Error(`Failed to verify final conduit ${this.conduitId} status`);
         }
