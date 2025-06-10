@@ -3,7 +3,7 @@ import { TwitchApi } from "./twitchApi.js";
 import { HandlerRegistry } from "../handlers/eventHandler.js";
 import { env, type Env } from "../config/config.js";
 import { TwitchEventSubClient } from "./twitch/eventsub.js";
-import { getTwitchIntegration, logWebSocketEvent } from "../lib/supabase.js";
+import { logWebSocketEvent } from "../lib/supabase.js";
 import { AxiosError } from "axios";
 
 export class WebSocketService {
@@ -112,7 +112,7 @@ export class WebSocketService {
     console.log(`⏰ Keepalive timer set to check every ${checkInterval / 1000} seconds`);
   }
 
-  private checkKeepalive(): void {
+  private async checkKeepalive(): Promise<void> {
     const now = Date.now();
     const timeSinceLastKeepalive = now - this.lastKeepaliveTime;
     const expectedInterval = this.keepaliveInterval * 1000;
@@ -129,6 +129,19 @@ export class WebSocketService {
       if (this.missedKeepalives >= this.MAX_MISSED_KEEPALIVES) {
         console.log("🔌 Closing connection - too many missed keepalives");
         this.ws?.close();
+        // log the event
+        await logWebSocketEvent({
+          event_type: "close",
+
+          message: {
+            code: 4002,
+            reason: "Client failed ping-pong",
+          },
+          shard_id: undefined,
+          connection_id: this.sessionId || undefined,
+          extra: undefined,
+          status: "error",
+        });
         return;
       }
     }
@@ -145,14 +158,6 @@ export class WebSocketService {
     // Determine shard_id if available (from payload.subscription?.transport?.shard_id)
     let shard_id: string | undefined = undefined;
 
-    // Log the event
-    await logWebSocketEvent({
-      event_type: metadata.message_type,
-      message,
-      shard_id,
-      connection_id: this.sessionId || undefined,
-      extra: undefined,
-    });
     switch (metadata.message_type) {
       case "session_welcome":
         console.log("👋 Session welcome received");
@@ -164,6 +169,15 @@ export class WebSocketService {
           this.startKeepaliveTimer(payload.session.keepalive_timeout_seconds);
         }
 
+        // log the event
+        await logWebSocketEvent({
+          event_type: "session_welcome",
+          message: payload,
+          shard_id: undefined,
+          connection_id: this.sessionId || undefined,
+          status: "success",
+        });
+
         // Update conduit shards with the new session ID
         if (this.conduitId && this.sessionId) {
           try {
@@ -171,9 +185,18 @@ export class WebSocketService {
               method: "websocket",
               session_id: this.sessionId,
             });
+            // Log the event
             console.log(`✅ Updated conduit ${this.conduitId} shards with new session ID`);
           } catch (error) {
             console.error("❌ Failed to update conduit shards with session ID:", error);
+            // log the event
+            await logWebSocketEvent({
+              event_type: "session_welcome",
+              message: error,
+              shard_id: undefined,
+              connection_id: this.sessionId || undefined,
+              status: "error",
+            });
           }
         }
 
@@ -209,9 +232,18 @@ export class WebSocketService {
           setTimeout(() => {
             console.log("🔄 Closing current connection to reconnect...");
             this.ws?.close();
+            
           }, 5000);
         } else {
           console.error("❌ Reconnect URL not provided in session_reconnect message");
+          // log the event
+          await logWebSocketEvent({
+            event_type: "session_reconnect",
+            message: payload,
+            shard_id: undefined,
+            connection_id: this.sessionId || undefined,
+            status: "error",
+          });
         }
         break;
 
@@ -227,21 +259,60 @@ export class WebSocketService {
         switch (payload.subscription?.status) {
           case "user_removed":
             console.log("❌ User no longer exists");
+            // log the event
+            await logWebSocketEvent({
+              event_type: "revocation.user_removed",
+              message: payload,
+              shard_id: undefined,
+              connection_id: this.sessionId || undefined,
+              status: "success",
+            });
             break;
           case "authorization_revoked":
             console.log("❌ Authorization token was revoked");
-            // You might want to trigger a re-authentication flow here
+            // log the event
+            await logWebSocketEvent({
+              event_type: "revocation.authorization_revoked",
+              message: payload,
+              shard_id: undefined,
+              connection_id: this.sessionId || undefined,
+              status: "success",
+            });
             break;
           case "version_removed":
             console.log("❌ Subscription type/version no longer supported");
+            // log the event
+            await logWebSocketEvent({
+              event_type: "revocation.version_removed",
+              message: payload,
+              shard_id: undefined,
+              connection_id: this.sessionId || undefined,
+              status: "success",
+            });
             break;
           default:
             console.log("❌ Unknown revocation reason");
+            // log the event
+            await logWebSocketEvent({
+              event_type: "revocation.unknown",
+              message: payload,
+              shard_id: undefined,
+              connection_id: this.sessionId || undefined,
+              status: "success",
+            });
         }
         break;
 
       default:
         console.log("❓ Unknown message type:", metadata.message_type);
+        // log the event
+        await logWebSocketEvent({
+          event_type: "unknown_message_type",
+          message: payload,
+          shard_id: undefined,
+          connection_id: this.sessionId || undefined,
+          status: "success",
+        });
     }
   }
 

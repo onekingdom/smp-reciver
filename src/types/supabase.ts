@@ -215,6 +215,7 @@ export type Database = {
           id: string
           message: Json
           shard_id: string | null
+          status: string | null
         }
         Insert: {
           connection_id?: string | null
@@ -224,6 +225,7 @@ export type Database = {
           id?: string
           message: Json
           shard_id?: string | null
+          status?: string | null
         }
         Update: {
           connection_id?: string | null
@@ -233,6 +235,7 @@ export type Database = {
           id?: string
           message?: Json
           shard_id?: string | null
+          status?: string | null
         }
         Relationships: []
       }

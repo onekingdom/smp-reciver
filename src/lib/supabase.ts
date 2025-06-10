@@ -103,12 +103,14 @@ export async function logWebSocketEvent({
   shard_id,
   connection_id,
   extra,
+  status,
 }: {
   event_type: string;
   message: any;
   shard_id?: string;
   connection_id?: string;
   extra?: string;
+  status?: string;
 }): Promise<boolean> {
   // NOTE: Remove generics for now due to typegen mismatch. Run Supabase typegen for full type safety.
   const { error } = await supabase.from("websocket_logs").insert([
@@ -118,6 +120,7 @@ export async function logWebSocketEvent({
       shard_id: shard_id ?? null,
       connection_id: connection_id ?? null,
       extra: extra ?? null,
+      status: status ?? null,
     },
   ]);
   if (error) {
