@@ -1,6 +1,7 @@
 import type { HandlerRegistry } from "./eventHandler";
 import * as TwitchSchema from "../schema/twitch-schema";
 import { handleChatMessage } from "../functions/eventsub/handle-chat-message";
+import { logTwitchEvent } from "@/lib/supabase";
 
 export const registerTwitchHandlers = (handlers: HandlerRegistry) => {
   // stream online
@@ -34,7 +35,9 @@ export const registerTwitchHandlers = (handlers: HandlerRegistry) => {
   // channelPoints
   handlers.registerTwitchHandler(
     "channel.channel_points_custom_reward_redemption.add",
-    async (event) => {},
+    async (event) => {
+      logTwitchEvent(event.broadcaster_user_id, "channel.channel_points_custom_reward_redemption.add", event, event.redeemed_at);
+    },
     TwitchSchema.ChannelPointsCustomRewardRedemptionAddSchema
   );
 

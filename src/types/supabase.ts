@@ -35,26 +35,32 @@ export type Database = {
       }
       chat_commands: {
         Row: {
+          action: string | null
           channel_id: string
           created_at: string
           created_by: string
           id: string
+          parameters: string | null
           response: string
           trigger: string
         }
         Insert: {
+          action?: string | null
           channel_id: string
           created_at?: string
           created_by: string
           id?: string
+          parameters?: string | null
           response: string
           trigger: string
         }
         Update: {
+          action?: string | null
           channel_id?: string
           created_at?: string
           created_by?: string
           id?: string
+          parameters?: string | null
           response?: string
           trigger?: string
         }
@@ -126,6 +132,30 @@ export type Database = {
           expires_at?: string | null
           id?: number
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      twitch_eventsub_notifications: {
+        Row: {
+          broadcaster_id: string
+          event_data: Json
+          event_type: string
+          id: string
+          received_at: string
+        }
+        Insert: {
+          broadcaster_id: string
+          event_data: Json
+          event_type: string
+          id?: string
+          received_at?: string
+        }
+        Update: {
+          broadcaster_id?: string
+          event_data?: Json
+          event_type?: string
+          id?: string
+          received_at?: string
         }
         Relationships: []
       }

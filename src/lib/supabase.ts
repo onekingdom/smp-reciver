@@ -3,6 +3,7 @@ import { env } from "../config/config.js";
 import axios from "axios";
 import type { Database } from "../types/supabase";
 import { supabase } from "../utils/supabase";
+import { subscription_type } from "@/types/twitch.js";
 
 export type TwitchIntegration = Database["public"]["Tables"]["twitch_integration"]["Row"] & {
   scopes?: string[];
@@ -130,6 +131,14 @@ export async function logWebSocketEvent({
   return true;
 }
 
+export async function logTwitchEvent(broadcaster_id: string, eventType: subscription_type, event_data: any, received_at?: string) {
+  const { error } = await supabase.from("twitch_eventsub_notifications").insert([{ event_type: eventType, broadcaster_id, event_data, received_at }]);
+  if (error) {
+    console.error("Error logging websocket event:", error);
+    return false;
+  }
+  return true;
+}
 export async function getCommand(channelId: string, trigger: string) {
   const { data, error } = await supabase.from("chat_commands").select("*").eq("channel_id", channelId).eq("trigger", trigger).single();
   if (error) return null;

@@ -1,4 +1,4 @@
-import type { TwitchEventSubMessage, EventSubscription, EventSubNotification } from "../types/twitch.js";
+import type { TwitchEventSubMessage, EventSubscription, EventSubNotification, subscription_type } from "../types/twitch.js";
 import { TwitchApi } from "./twitchApi.js";
 import { HandlerRegistry } from "../handlers/eventHandler.js";
 import { env, type Env } from "../config/config.js";
@@ -219,7 +219,7 @@ export class WebSocketService {
         } as EventSubNotification;
 
         if (metadata.subscription_type && payload.event) {
-          await this.handlerRegistry.processTwitchEvent(metadata.subscription_type, event);
+          await this.handlerRegistry.processTwitchEvent(metadata.subscription_type as subscription_type, event);
         }
         break;
 

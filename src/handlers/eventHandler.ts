@@ -3,6 +3,7 @@ import type { EventSubNotification, subscription_type } from "../types/twitch";
 import { z } from "zod";
 import { registerTwitchHandlers } from "./twitch";
 import { TwitchApi } from "@/services/twitchApi";
+import { logTwitchEvent, logWebSocketEvent } from "@/lib/supabase";
 
 export class HandlerRegistry {
   private twitchHandlers = new Map<string, (data: unknown, twitchApi: TwitchApi) => Promise<void>>();
@@ -49,7 +50,9 @@ export class HandlerRegistry {
   }
 
   // Process Twitch EventSub events
-  async processTwitchEvent(eventType: string, data: EventSubNotification): Promise<void> {
+  async processTwitchEvent(eventType: subscription_type, data: EventSubNotification): Promise<void> {
+
+
 
     const handler = this.twitchHandlers.get(eventType);
 
