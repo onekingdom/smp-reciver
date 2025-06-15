@@ -1,5 +1,3 @@
-import { env } from "@/config/config";
-import { ChatMessageSchema } from "@/schema/twitch-schema";
 import { TwitchApi } from "@/services/twitchApi";
 
 interface ActionEvent {
@@ -15,8 +13,17 @@ interface ActionEvent {
 export async function handleAction(event: ActionEvent, twitchApi: TwitchApi) {
   const { broadcaster_user_id, broadcaster_user_name, chatter_user_id, chatter_user_name, message } = event;
 
+  const action = event.action.toLowerCase().split(".")[0];
+  const actionArgs = event.action.toLowerCase().split(".").slice(1);
 
-  
+  switch (action) {
+    case "minecraft":
+        
+      break;
+  }
+
+
+
 
   
 }
