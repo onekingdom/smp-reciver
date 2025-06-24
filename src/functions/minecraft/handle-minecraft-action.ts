@@ -53,7 +53,7 @@ class MinecraftAction {
     await this.execute("event.launce");
   }
 
-  3
+  
 }
 
 export default MinecraftAction;
