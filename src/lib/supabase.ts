@@ -140,7 +140,7 @@ export async function logTwitchEvent(broadcaster_id: string, eventType: subscrip
   return true;
 }
 export async function getCommand(channelId: string, trigger: string) {
-  const { data, error } = await supabase.from("chat_commands").select("*").eq("channel_id", channelId).eq("trigger", trigger).single();
+  const { data, error } = await supabase.from("chat_commands").select("*, actions(*)").eq("channel_id", channelId).eq("trigger", trigger).single();
   if (error) return null;
   return data;
 }

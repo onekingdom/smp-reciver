@@ -12,7 +12,7 @@ interface TokenCache {
 export abstract class TwitchApiBaseClient {
   private readonly MAX_RETRIES = 2;
   private requestRetryCount: Map<string, number> = new Map();
-  private broadcaster_id: string | null = null;
+  protected broadcaster_id: string | null = null;
 
   constructor(broadcaster_id: string | null = null) {
     this.broadcaster_id = broadcaster_id;

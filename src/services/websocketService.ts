@@ -14,18 +14,17 @@ export class WebSocketService {
   private keepaliveInterval: number = 10; // Default, will be updated from session
   private lastKeepaliveTime: number = Date.now();
   private missedKeepalives: number = 0;
-  private readonly MAX_MISSED_KEEPALIVES = 3;
+  private readonly MAX_MISSED_KEEPALIVES = 10;
   private twitchApi: TwitchApi;
 
   private eventSubClient: TwitchEventSubClient;
   private conduitId: string | null = null;
-  private handlerRegistry: HandlerRegistry;
 
-  constructor(private wsUrl: string = "wss://eventsub.wss.twitch.tv/ws") {
+  constructor(private wsUrl: string = "wss://eventsub.wss.twitch.tv/ws", private handlerRegistry: HandlerRegistry) {
     this.conduitId = env.TWITCH_CONDUIT_ID;
     this.twitchApi = new TwitchApi();
-    this.handlerRegistry = new HandlerRegistry();
     this.eventSubClient = new TwitchEventSubClient();
+    this.handlerRegistry = handlerRegistry;
   }
 
   async connect(): Promise<void> {

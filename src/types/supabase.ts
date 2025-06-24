@@ -9,6 +9,30 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      actions: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          module: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          module: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          module?: string
+        }
+        Relationships: []
+      }
       auth_logs: {
         Row: {
           action: string
@@ -40,8 +64,7 @@ export type Database = {
           created_at: string
           created_by: string
           id: string
-          parameters: string | null
-          response: string
+          response: string | null
           trigger: string
         }
         Insert: {
@@ -50,8 +73,7 @@ export type Database = {
           created_at?: string
           created_by: string
           id?: string
-          parameters?: string | null
-          response: string
+          response?: string | null
           trigger: string
         }
         Update: {
@@ -60,11 +82,18 @@ export type Database = {
           created_at?: string
           created_by?: string
           id?: string
-          parameters?: string | null
-          response?: string
+          response?: string | null
           trigger?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "chat_commands_action_fkey"
+            columns: ["action"]
+            isOneToOne: false
+            referencedRelation: "actions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       minecraft_players: {
         Row: {
@@ -274,7 +303,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_minecraft_player_id: {
+        Args: { input_twitch_user_id: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

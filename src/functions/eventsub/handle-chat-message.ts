@@ -18,15 +18,17 @@ export async function handleChatMessage(event: z.infer<typeof ChatMessageSchema>
 
   // Fetch and execute command
   const command = await getCommand(broadcaster_user_id, trigger);
+
   
 
   if (!command) return;
 
-  if (command.action) {
+  if (command.actions) {
     await handleAction(
       {
-        action: command.action,
-        parameters: command.parameters,
+        action: command.actions.action,
+        module: command.actions.module,
+        metadata: command.actions.metadata as Record<string, any>,
         broadcaster_user_id,
         broadcaster_user_name,
         chatter_user_id,
