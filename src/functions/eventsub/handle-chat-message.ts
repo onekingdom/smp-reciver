@@ -18,6 +18,7 @@ export async function handleChatMessage(event: z.infer<typeof ChatMessageSchema>
 
   // Fetch and execute command
   const command = await getCommand(broadcaster_user_id, trigger);
+  
 
   
 

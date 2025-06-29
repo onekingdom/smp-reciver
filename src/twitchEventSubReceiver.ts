@@ -11,7 +11,7 @@ export class TwitchEventSubReceiver {
 
   constructor(private config: Env, private handlerRegistry: HandlerRegistry) {
     this.webhookService = new WebhookService(config);
-    this.websocketService = new WebSocketService("wss://eventsub.wss.twitch.tv/ws", handlerRegistry);
+    this.websocketService = new WebSocketService("ws://127.0.0.1:8080/ws", handlerRegistry);
   }
 
   async start(): Promise<void> {

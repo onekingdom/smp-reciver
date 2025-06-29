@@ -1,27 +1,28 @@
 import { wsServer } from "@/services/minecraftWebsocketServer";
+import { MinecraftActionType } from "@/types";
 import { supabase } from "@/utils/supabase";
+import { MinecraftActions } from "./handle-minecraft-actions";
+import { MinecraftActionsType } from "@/types/websocket";
+import { TwitchApi } from "@/services/twitchApi";
 
-interface MinecraftActionType {
-  broadcaster_username: string;
-  broadcaster_user_id: string;
-  viewer_name: string;
-  viewer_id: string;
-}
 
-class MinecraftAction {
+
+class MinecraftActionBase {
   protected broadcaster_username: string;
   protected broadcaster_user_id: string;
   protected viewer_name: string;
   protected viewer_id: string;
+  protected twitchApi: TwitchApi;
 
-  constructor(minecraftAction: MinecraftActionType) {
+  constructor(minecraftAction: MinecraftActionType, twitchApi: TwitchApi) {
     this.broadcaster_username = minecraftAction.broadcaster_username;
     this.broadcaster_user_id = minecraftAction.broadcaster_user_id;
     this.viewer_name = minecraftAction.viewer_name;
     this.viewer_id = minecraftAction.viewer_id;
+    this.twitchApi = twitchApi;
   }
 
-  async execute(action: string) {
+  async execute(action: MinecraftActionsType, metadata?: Record<string, any>) {
     const minecraft_uuid = await this.getPlayerUUID();
 
     await wsServer.broadcast({
@@ -30,6 +31,7 @@ class MinecraftAction {
       streamer_name: this.broadcaster_username,
       streamer_id: this.broadcaster_user_id,
       viewer_name: this.viewer_name,
+      metadata: metadata,
     });
   }
 
@@ -49,11 +51,9 @@ class MinecraftAction {
     return data;
   }
 
-  public async launcePlayer() {
-    await this.execute("event.launce");
-  }
+
 
   
 }
 
-export default MinecraftAction;
+export default MinecraftActionBase;

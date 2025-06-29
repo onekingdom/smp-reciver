@@ -7,7 +7,6 @@ export class TwitchApi {
   public eventsub: TwitchEventSubClient;
 
   constructor(broadcaster_id: string | null = null) {
-    console.log(`Creating TwitchApi for ${broadcaster_id}`);
     this.chat = new TwitchChatClient(broadcaster_id);
     this.eventsub = new TwitchEventSubClient(broadcaster_id);
   }

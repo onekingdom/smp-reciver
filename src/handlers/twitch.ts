@@ -2,6 +2,7 @@ import type { HandlerRegistry } from "./eventHandler";
 import * as TwitchSchema from "../schema/twitch-schema";
 import { handleChatMessage } from "../functions/eventsub/handle-chat-message";
 import { logTwitchEvent } from "@/lib/supabase";
+import { handleSubscribe } from "@/functions/eventsub/handle-subscribe";
 
 export const registerTwitchHandlers = (handlers: HandlerRegistry) => {
   // stream online
@@ -26,7 +27,13 @@ export const registerTwitchHandlers = (handlers: HandlerRegistry) => {
   );
 
   // subscriber
-  handlers.registerTwitchHandler("channel.subscribe", async (event) => {}, TwitchSchema.SubscriptionEventSchema);
+  handlers.registerTwitchHandler(
+    "channel.subscribe",
+    async (event, twitchApi) => {
+      await handleSubscribe(event, twitchApi);
+    },
+    TwitchSchema.SubscriptionEventSchema
+  );
   handlers.registerTwitchHandler("channel.subscription.gift", async (event) => {}, TwitchSchema.SubscriptionGiftSchema);
 
   // raid
