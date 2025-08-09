@@ -1,4 +1,4 @@
-import type { Env } from '../../config/config.js';
+import type { Env } from '../../utils/env.js';
 import { BaseTwitchClient } from './base-client.js';
 
 export interface Vod {

@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { env } from "../config/config.js";
+import { env } from "../utils/env.js";
 import axios from "axios";
 import type { Database } from "../types/supabase";
 import { supabase } from "../utils/supabase";
@@ -140,12 +140,63 @@ export async function logTwitchEvent(broadcaster_id: string, eventType: subscrip
   return true;
 }
 export async function getCommand(channelId: string, trigger: string) {
-  const { data, error } = await supabase.from("chat_commands").select("*, actions(*)").eq("channel_id", channelId).eq("trigger", trigger).single();
-  if (error) return null;
+  const { data, error } = await supabase
+    .from("chat_commands")
+    .select("*, actions(*), command_cooldowns(*), commands_active_cooldowns(*), command_permissions(*)")
+    .eq("channel_id", channelId)
+    .eq("trigger", trigger)
+    .single();
+  if (error) {
+    console.error("Error fetching command:", error);
+    return null;
+  }
   return data;
 }
 
 export async function addCommand(channelId: string, trigger: string, response: string, createdBy: string) {
   const { error } = await supabase.from("chat_commands").insert([{ channel_id: channelId, trigger, response, created_by: createdBy }]);
   return !error;
+}
+
+export async function removeSpecificCooldown(cooldownId: string, type: "user" | "global", chatter_id: string | null) {
+  if (type === "user") {
+    if (!chatter_id) {
+      console.error("User ID is required for user cooldowns");
+      return false;
+    }
+    const { error } = await supabase.from("commands_active_cooldowns").delete().eq("id", cooldownId).eq("type", "user").eq("chatter_id", chatter_id);
+    if (error) {
+      console.error("Error removing user cooldown:", error);
+      return false;
+    }
+  } else {
+    const { error } = await supabase.from("commands_active_cooldowns").delete().eq("id", cooldownId).eq("type", "global").is("chatter_id", null);
+    if (error) {
+      console.error("Error removing global cooldown:", error);
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export async function addCooldown(commandId: string, type: "user" | "global", chatter_id: string | null, expires_at: string) {
+  const { error } = await supabase.from("commands_active_cooldowns").insert([{ command_id: commandId, type, chatter_id, expires_at }]);
+  if (error) {
+    console.error("Error adding cooldown:", error);
+    return false;
+  }
+  return true;
+}
+
+export async function updateCooldown(cooldownId: string, expires_at: Date) {
+  const { error } = await supabase
+    .from("commands_active_cooldowns")
+    .update({ expires_at: expires_at.toISOString() })
+    .eq("id", cooldownId);
+  if (error) {
+    console.error("Error updating cooldown:", error);
+    return false;
+  }
+  return true;
 }

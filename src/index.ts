@@ -1,5 +1,5 @@
 // src/index.ts
-import { env } from "./config/config.js";
+import { env } from "./utils/env.js";
 import { wsServer } from "./services/minecraftWebsocketServer.js";
 import { handlers } from "./handlers/eventHandler.js";
 import { TwitchEventSubReceiver } from "./twitchEventSubReceiver.js";

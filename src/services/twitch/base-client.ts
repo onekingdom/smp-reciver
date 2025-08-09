@@ -1,5 +1,5 @@
 import type { AxiosInstance, AxiosError, InternalAxiosRequestConfig, AxiosResponse } from "axios";
-import { env, type Env } from "../../config/config.js";
+import { env, type Env } from "../../utils/env.js";
 import { getTwitchIntegration, refreshTwitchToken, getTwitchAppToken, updateTwitchAppToken } from "../../lib/supabase.js";
 import axios from "axios";
 import { supabase } from "@/utils/supabase.js";

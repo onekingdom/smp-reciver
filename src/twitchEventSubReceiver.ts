@@ -1,32 +1,16 @@
-import { serve } from "bun";
-import { WebhookService } from "./services/webhookService.js";
-import { WebSocketService } from "./services/websocketService.js";
-import type { Env } from "./config/config.js";
+import type { Env } from "./utils/env.js";
 import { HandlerRegistry } from "./handlers/eventHandler.js";
+import { WebSocketService } from "./services/websocketService.js";
 
 export class TwitchEventSubReceiver {
-  private webhookService: WebhookService;
   private websocketService: WebSocketService;
   private server: any;
 
   constructor(private config: Env, private handlerRegistry: HandlerRegistry) {
-    this.webhookService = new WebhookService(config);
     this.websocketService = new WebSocketService("wss://eventsub.wss.twitch.tv/ws", handlerRegistry);
   }
 
   async start(): Promise<void> {
-    // Start webhook server
-    // const port = this.config.WEBHOOK_PORT || 3000;
-    // this.server = serve({
-    //   fetch: this.webhookService.getApp().fetch,
-    //   port,
-    //   websocket: {
-    //     message: () => {}, // Required but not used
-    //   },
-    // });
-
-    // console.log(`🚀 Webhook server running on http://localhost:${port}`);
-
     // Connect WebSocket
     await this.websocketService.connect();
 

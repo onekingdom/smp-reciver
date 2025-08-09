@@ -2,7 +2,7 @@
 import { Hono } from 'hono';
 import type { TwitchWebhookEvent } from '../types/twitch.js';
 import { verifyWebhookSignature } from '../utils/crypto.js';
-import type { Env } from '../config/config.js';
+import type { Env } from '../utils/env.js';
 
 export class WebhookService {
   private app: Hono;

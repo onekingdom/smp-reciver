@@ -1,7 +1,7 @@
 import type { TwitchEventSubMessage, EventSubscription, EventSubNotification, subscription_type } from "../types/twitch.js";
 import { TwitchApi } from "./twitchApi.js";
 import { HandlerRegistry } from "../handlers/eventHandler.js";
-import { env, type Env } from "../config/config.js";
+import { env, type Env } from "../utils/env.js";
 import { TwitchEventSubClient } from "./twitch/eventsub.js";
 import { logWebSocketEvent } from "../lib/supabase.js";
 import { AxiosError } from "axios";

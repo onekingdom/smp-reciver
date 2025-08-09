@@ -1,5 +1,5 @@
 import { TwitchApi } from "@/services/twitchApi";
-import { env } from "@/config/config";
+import { env } from "@/utils/env";
 import { SubscriptionEventSchema } from "@/schema/twitch-schema";
 import { z } from "zod";
 import { handleAction } from "../handle-action";

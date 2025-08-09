@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instanciate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "12.2.3 (519615d)"
+  }
   public: {
     Tables: {
       actions: {
@@ -66,6 +71,7 @@ export type Database = {
           id: string
           response: string | null
           trigger: string
+          visibility: string
         }
         Insert: {
           action?: string | null
@@ -75,6 +81,7 @@ export type Database = {
           id?: string
           response?: string | null
           trigger: string
+          visibility?: string
         }
         Update: {
           action?: string | null
@@ -84,6 +91,7 @@ export type Database = {
           id?: string
           response?: string | null
           trigger?: string
+          visibility?: string
         }
         Relationships: [
           {
@@ -95,9 +103,167 @@ export type Database = {
           },
         ]
       }
+      command_aliases: {
+        Row: {
+          alias: string
+          command_id: string
+          id: string
+        }
+        Insert: {
+          alias: string
+          command_id: string
+          id?: string
+        }
+        Update: {
+          alias?: string
+          command_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "command_aliases_command_id_fkey"
+            columns: ["command_id"]
+            isOneToOne: false
+            referencedRelation: "chat_commands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      command_cooldowns: {
+        Row: {
+          command_id: string
+          duration_seconds: number
+          id: string
+          type: string
+        }
+        Insert: {
+          command_id: string
+          duration_seconds: number
+          id?: string
+          type: string
+        }
+        Update: {
+          command_id?: string
+          duration_seconds?: number
+          id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "command_cooldowns_command_id_fkey"
+            columns: ["command_id"]
+            isOneToOne: false
+            referencedRelation: "chat_commands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      command_permissions: {
+        Row: {
+          command_id: string
+          id: string
+          role: string
+        }
+        Insert: {
+          command_id: string
+          id?: string
+          role: string
+        }
+        Update: {
+          command_id?: string
+          id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "command_permissions_command_id_fkey"
+            columns: ["command_id"]
+            isOneToOne: false
+            referencedRelation: "chat_commands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      command_usage_logs: {
+        Row: {
+          channel_id: string
+          command_id: string
+          id: string
+          message: string | null
+          used_at: string | null
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          channel_id: string
+          command_id: string
+          id?: string
+          message?: string | null
+          used_at?: string | null
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          channel_id?: string
+          command_id?: string
+          id?: string
+          message?: string | null
+          used_at?: string | null
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "command_usage_logs_command_id_fkey"
+            columns: ["command_id"]
+            isOneToOne: false
+            referencedRelation: "chat_commands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commands_active_cooldowns: {
+        Row: {
+          chatter_id: string | null
+          command_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          type: string
+        }
+        Insert: {
+          chatter_id?: string | null
+          command_id?: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          type: string
+        }
+        Update: {
+          chatter_id?: string | null
+          command_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commands_active_cooldowns_command_id_fkey"
+            columns: ["command_id"]
+            isOneToOne: false
+            referencedRelation: "chat_commands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       minecraft_players: {
         Row: {
+          approval_status: string | null
+          approved_at: string | null
+          approved_by: string | null
           created_at: string
+          denial_reason: string | null
           id: number
           is_approved: boolean | null
           minecraft_username: string | null
@@ -106,7 +272,11 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
+          denial_reason?: string | null
           id?: number
           is_approved?: boolean | null
           minecraft_username?: string | null
@@ -115,7 +285,11 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
+          denial_reason?: string | null
           id?: number
           is_approved?: boolean | null
           minecraft_username?: string | null
@@ -124,6 +298,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "minecraft_players_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "minecraft_players_twitch_integration_id_fkey"
             columns: ["twitch_integration_id"]
@@ -139,6 +320,93 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      permissions: {
+        Row: {
+          action: string
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          resource: string
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          resource: string
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          resource?: string
+        }
+        Relationships: []
+      }
+      role_permissions: {
+        Row: {
+          created_at: string | null
+          id: string
+          permission_id: string | null
+          role_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          permission_id?: string | null
+          role_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          permission_id?: string | null
+          role_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_permission_id_fkey"
+            columns: ["permission_id"]
+            isOneToOne: false
+            referencedRelation: "permissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_permissions_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roles: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       twitch_app_token: {
         Row: {
@@ -241,6 +509,41 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          assigned_at: string | null
+          assigned_by: string | null
+          expires_at: string | null
+          id: string
+          role_id: string | null
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          expires_at?: string | null
+          id?: string
+          role_id?: string | null
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          expires_at?: string | null
+          id?: string
+          role_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           created_at: string | null
@@ -298,6 +601,48 @@ export type Database = {
         }
         Relationships: []
       }
+      workflows: {
+        Row: {
+          created_at: string | null
+          cron_path: string | null
+          description: string
+          edges: string | null
+          flow_path: string | null
+          id: string
+          name: string
+          nodes: string | null
+          publish: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          cron_path?: string | null
+          description: string
+          edges?: string | null
+          flow_path?: string | null
+          id?: string
+          name: string
+          nodes?: string | null
+          publish?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          cron_path?: string | null
+          description?: string
+          edges?: string | null
+          flow_path?: string | null
+          id?: string
+          name?: string
+          nodes?: string | null
+          publish?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -306,6 +651,31 @@ export type Database = {
       get_minecraft_player_id: {
         Args: { input_twitch_user_id: string }
         Returns: string
+      }
+      get_user_permissions: {
+        Args: { p_user_id: string }
+        Returns: {
+          permission_name: string
+          resource: string
+          action: string
+        }[]
+      }
+      get_user_roles: {
+        Args: { p_user_id: string }
+        Returns: {
+          role_name: string
+          role_description: string
+          assigned_at: string
+          expires_at: string
+        }[]
+      }
+      user_has_permission: {
+        Args: { p_user_id: string; p_permission_name: string }
+        Returns: boolean
+      }
+      user_has_role: {
+        Args: { p_user_id: string; p_role_name: string }
+        Returns: boolean
       }
     }
     Enums: {
@@ -317,21 +687,25 @@ export type Database = {
   }
 }
 
-type DefaultSchema = Database[Extract<keyof Database, "public">]
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
@@ -349,14 +723,16 @@ export type Tables<
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
@@ -372,14 +748,16 @@ export type TablesInsert<
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
@@ -395,14 +773,16 @@ export type TablesUpdate<
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
@@ -410,14 +790,16 @@ export type Enums<
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
     : never = never,
-> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
