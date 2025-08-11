@@ -162,17 +162,17 @@ export type Database = {
         Row: {
           command_id: string
           id: string
-          role: string
+          role: Database["public"]["Enums"]["command_permission"]
         }
         Insert: {
           command_id: string
           id?: string
-          role: string
+          role?: Database["public"]["Enums"]["command_permission"]
         }
         Update: {
           command_id?: string
           id?: string
-          role?: string
+          role?: Database["public"]["Enums"]["command_permission"]
         }
         Relationships: [
           {
@@ -601,47 +601,240 @@ export type Database = {
         }
         Relationships: []
       }
-      workflows: {
+      wordflow_run_queue: {
         Row: {
           created_at: string | null
-          cron_path: string | null
-          description: string
-          edges: string | null
-          flow_path: string | null
-          id: string
-          name: string
-          nodes: string | null
-          publish: boolean | null
-          updated_at: string | null
-          user_id: string
+          id: number
+          processed: boolean | null
+          run_id: string | null
         }
         Insert: {
           created_at?: string | null
-          cron_path?: string | null
-          description: string
-          edges?: string | null
-          flow_path?: string | null
-          id?: string
-          name: string
-          nodes?: string | null
-          publish?: boolean | null
-          updated_at?: string | null
-          user_id: string
+          id?: number
+          processed?: boolean | null
+          run_id?: string | null
         }
         Update: {
           created_at?: string | null
-          cron_path?: string | null
-          description?: string
-          edges?: string | null
-          flow_path?: string | null
+          id?: number
+          processed?: boolean | null
+          run_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "run_queue_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workdflow_run_actions: {
+        Row: {
+          action_id: string | null
+          error: string | null
+          finished_at: string | null
+          id: string
+          input: Json | null
+          order: number | null
+          output: Json | null
+          run_id: string | null
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          action_id?: string | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          input?: Json | null
+          order?: number | null
+          output?: Json | null
+          run_id?: string | null
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          action_id?: string | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          input?: Json | null
+          order?: number | null
+          output?: Json | null
+          run_id?: string | null
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "run_actions_action_id_fkey"
+            columns: ["action_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_actions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "run_actions_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_actions: {
+        Row: {
+          config: Json | null
+          created_at: string | null
+          id: string
+          module: string
+          order: number
+          type: string
+          workflow_id: string
+        }
+        Insert: {
+          config?: Json | null
+          created_at?: string | null
+          id?: string
+          module: string
+          order: number
+          type: string
+          workflow_id: string
+        }
+        Update: {
+          config?: Json | null
+          created_at?: string | null
+          id?: string
+          module?: string
+          order?: number
+          type?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_actions_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_runs: {
+        Row: {
+          created_at: string | null
+          finished_at: string | null
+          id: string
+          started_at: string | null
+          status: string
+          trigger_payload: Json | null
+          workflow_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          finished_at?: string | null
+          id?: string
+          started_at?: string | null
+          status?: string
+          trigger_payload?: Json | null
+          workflow_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          finished_at?: string | null
+          id?: string
+          started_at?: string | null
+          status?: string
+          trigger_payload?: Json | null
+          workflow_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_runs_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_triggers: {
+        Row: {
+          config: Json | null
+          created_at: string | null
+          event: string
+          id: string
+          module: string
+          twitch_user_id: string
+          workflow_id: string | null
+        }
+        Insert: {
+          config?: Json | null
+          created_at?: string | null
+          event: string
+          id?: string
+          module: string
+          twitch_user_id: string
+          workflow_id?: string | null
+        }
+        Update: {
+          config?: Json | null
+          created_at?: string | null
+          event?: string
+          id?: string
+          module?: string
+          twitch_user_id?: string
+          workflow_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_triggers_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflows: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          enabled: boolean | null
+          id: string
+          name: string
+          twitch_user_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          enabled?: boolean | null
+          id?: string
+          name: string
+          twitch_user_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          enabled?: boolean | null
           id?: string
           name?: string
-          nodes?: string | null
-          publish?: boolean | null
+          twitch_user_id?: string | null
           updated_at?: string | null
-          user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "workflows_twitch_user_id_fkey"
+            columns: ["twitch_user_id"]
+            isOneToOne: false
+            referencedRelation: "twitch_integration"
+            referencedColumns: ["twitch_user_id"]
+          },
+        ]
       }
     }
     Views: {
@@ -679,7 +872,15 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      command_permission:
+        | "everyone"
+        | "follower"
+        | "vip"
+        | "subscriber"
+        | "founder"
+        | "moderator"
+        | "super_moderator"
+        | "broadcaster"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -806,6 +1007,17 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      command_permission: [
+        "everyone",
+        "follower",
+        "vip",
+        "subscriber",
+        "founder",
+        "moderator",
+        "super_moderator",
+        "broadcaster",
+      ],
+    },
   },
 } as const

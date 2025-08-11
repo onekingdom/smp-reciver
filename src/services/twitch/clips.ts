@@ -1,5 +1,5 @@
-import type { Env } from '../../utils/env.js';
-import { BaseTwitchClient } from './base-client.js';
+import type { Env } from "../../utils/env.js";
+import { TwitchApiBaseClient } from "./base-client.js";
 
 export interface Clip {
   id: string;
@@ -35,28 +35,23 @@ export interface CreateClipOptions {
   hasDelay?: boolean;
 }
 
-export class TwitchClipsClient extends BaseTwitchClient {
-  async getClips(options: GetClipsOptions, channelId?: string): Promise<{ data: Clip[]; pagination: { cursor?: string } }> {
-    const api = channelId ? this.withChannel(channelId) : this.api;
-    const response = await api.get('/clips', { params: options });
+export class TwitchClipsClient extends TwitchApiBaseClient {
+  constructor(broadcaster_id: string | null = null) {
+    super(broadcaster_id);
+  }
+
+  async getClips(options: GetClipsOptions): Promise<{ data: Clip[]; pagination: { cursor?: string } }> {
+    const response = await this.clientApi().get("/clips", { params: options });
     return response.data;
   }
 
-  async getClipById(clipId: string, channelId?: string): Promise<Clip> {
-    const api = channelId ? this.withChannel(channelId) : this.api;
-    const response = await api.get('/clips', { params: { id: clipId } });
+  async getClipById(clipId: string): Promise<Clip> {
+    const response = await this.clientApi().get("/clips", { params: { id: clipId } });
     return response.data.data[0];
   }
 
-  async createClip(options: CreateClipOptions, channelId: string): Promise<{ id: string; edit_url: string }> {
-    const api = this.withChannel(channelId);
-    const response = await api.post('/clips', null, { params: options });
+  async createClip(options: CreateClipOptions): Promise<{ id: string; edit_url: string }> {
+    const response = await this.clientApi().post("/clips", null, { params: options });
     return response.data.data[0];
   }
-
-  async getClipAnalytics(clipId: string, channelId: string): Promise<any> {
-    const api = this.withChannel(channelId);
-    const response = await api.get('/analytics/clips', { params: { clip_id: clipId } });
-    return response.data;
-  }
-} 
+}

@@ -5,7 +5,7 @@ export class TwitchChatClient extends TwitchApiBaseClient {
   constructor(broadcaster_id: string | null = null) {
     super(broadcaster_id);
   }
-  async sendMessage({ message, replyToMessageId }: { message: string, replyToMessageId?: string | null }) {
+  async sendMessage({ message, replyToMessageId }: { message: string; replyToMessageId?: string | null }) {
     const response = await this.appApi().post(`/chat/messages`, {
       message,
       broadcaster_id: this.broadcaster_id,
@@ -16,8 +16,6 @@ export class TwitchChatClient extends TwitchApiBaseClient {
     return response.data;
   }
 
-
-
   async getViewers() {
     try {
       const response = await this.clientApi().get<GetChattersResponse>(`/chat/chatters`, {
@@ -25,7 +23,7 @@ export class TwitchChatClient extends TwitchApiBaseClient {
           broadcaster_id: this.broadcaster_id,
           moderator_id: this.broadcaster_id,
           first: 500,
-        }
+        },
       });
       return response.data.data;
     } catch (error) {

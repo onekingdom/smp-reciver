@@ -4,10 +4,13 @@ import { z } from "zod";
 import { getCommand } from "../../lib/supabase";
 import { ChatMessageSchema } from "../../schema/twitch-schema";
 import { handleAction } from "../handle-action";
+import { resolveVariables } from "../resolveVariables";
 import { checkCommandCooldowns } from "../command/checkCooldown";
+import { checkPermission } from "../command/checkPermission";
 
 export async function handleChatMessage(event: z.infer<typeof ChatMessageSchema>, twitchApi: TwitchApi) {
   const { broadcaster_user_id, broadcaster_user_name, chatter_user_id, chatter_user_name, message, message_id } = event;
+  
 
   if (env.NODE_ENV === "development") {
     console.log(`[${broadcaster_user_name}] ${chatter_user_name}: ${message.text}`);
@@ -23,6 +26,23 @@ export async function handleChatMessage(event: z.infer<typeof ChatMessageSchema>
     return;
   }
 
+  // 1) Permission check
+  const permissionResult = await checkPermission(
+    chatter_user_id,
+    broadcaster_user_id,
+    command.command_permissions ?? [],
+    event,
+    twitchApi
+  );
+  if (!permissionResult.allowed) {
+    await twitchApi.chat.sendMessage({
+      message: permissionResult.reason ?? "You don't have permission to use this command.",
+      replyToMessageId: message_id,
+    });
+    return;
+  }
+
+  // 2) Cooldown check
   if (command.command_cooldowns && command.command_cooldowns.length > 0) {
     const cooldownResult = await checkCommandCooldowns(
       command.id,
@@ -44,25 +64,27 @@ export async function handleChatMessage(event: z.infer<typeof ChatMessageSchema>
       });
       return;
     }
+  }
 
-    if (command.response) {
-      await twitchApi.chat.sendMessage({ message: command.response, replyToMessageId: message_id });
-    }
+  // 3) Execute response/actions
+  if (command.response) {
+    const templated = await resolveVariables(command.response, { twitchApi, event });
+    await twitchApi.chat.sendMessage({ message: templated, replyToMessageId: message_id });
+  }
 
-    if (command.actions) {
-      await handleAction(
-        {
-          action: command.actions.action,
-          module: command.actions.module,
-          metadata: command.actions.metadata as Record<string, any>,
-          broadcaster_user_id,
-          broadcaster_user_name,
-          chatter_user_id,
-          chatter_user_name,
-          message: message.text,
-        },
-        twitchApi
-      );
-    }
+  if (command.actions) {
+    await handleAction(
+      {
+        action: command.actions.action,
+        module: command.actions.module,
+        metadata: command.actions.metadata as Record<string, any>,
+        broadcaster_user_id,
+        broadcaster_user_name,
+        chatter_user_id,
+        chatter_user_name,
+        message: message.text,
+      },
+      twitchApi
+    );
   }
 }

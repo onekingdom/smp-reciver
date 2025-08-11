@@ -1,6 +1,5 @@
-import type { Env } from '../../utils/env.js';
-import { BaseTwitchClient } from './base-client.js';
-import type { AxiosError } from 'axios';
+import type { AxiosError } from "axios";
+import { TwitchApiBaseClient } from "./base-client.js";
 
 export interface Subscription {
   broadcaster_id: string;
@@ -24,32 +23,39 @@ export interface GetSubscriptionsOptions {
   after?: string;
 }
 
-export class TwitchSubscriptionsClient extends BaseTwitchClient {
+export class TwitchSubscriptionsClient extends TwitchApiBaseClient {
+
+  constructor(broadcaster_id: string | null = null) {
+    super(broadcaster_id);
+  }
+
+
   async getSubscriptions(options: GetSubscriptionsOptions, channelId: string): Promise<{ data: Subscription[]; pagination: { cursor?: string } }> {
-    const api = this.withChannel(channelId);
-    const response = await api.get('/subscriptions', { params: options });
+    const response = await this.clientApi().get("/subscriptions", { params: options });
     return response.data;
   }
 
-  async getSubscriptionByUserId(broadcasterId: string, userId: string, channelId: string): Promise<Subscription> {
-    const api = this.withChannel(channelId);
-    const response = await api.get('/subscriptions/user', {
-      params: { broadcaster_id: broadcasterId, user_id: userId }
+  async getSubscriptionByUserId(broadcasterId: string, userId: string): Promise<Subscription> {
+    const response = await this.clientApi().get("/subscriptions/user", {
+      params: { broadcaster_id: broadcasterId, user_id: userId },
     });
     return response.data.data[0];
   }
 
-  async getSubscriberCount(broadcasterId: string, channelId: string): Promise<number> {
-    const api = this.withChannel(channelId);
-    const response = await api.get('/subscriptions', {
-      params: { broadcaster_id: broadcasterId, first: 1 }
+  // TODO: make it work with tier 1, 2, 3 so for example if there are 100 subscribers, 50 of them are tier 1, 30 of them are tier 2, and 20 of them are tier 3,
+  async getSubscriberCount(): Promise<number> {
+    const response = await this.clientApi().get("/subscriptions", {
+      params: { broadcaster_id: this.broadcaster_id, first: 1 },
     });
-    return response.data.total;
+    return response.data.total; 
   }
 
-  async checkUserSubscription(broadcasterId: string, userId: string, channelId: string): Promise<boolean> {
+  async isSubscriber(userId: string): Promise<boolean> {
+    if (!this.broadcaster_id) { 
+      throw new Error("Broadcaster ID is required");
+    }
     try {
-      await this.getSubscriptionByUserId(broadcasterId, userId, channelId);
+      await this.getSubscriptionByUserId(this.broadcaster_id, userId);
       return true;
     } catch (error) {
       if ((error as AxiosError)?.response?.status === 404) {
@@ -58,4 +64,4 @@ export class TwitchSubscriptionsClient extends BaseTwitchClient {
       throw error;
     }
   }
-} 
+}

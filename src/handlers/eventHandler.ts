@@ -3,6 +3,8 @@ import type { EventSubNotification, subscription_type } from "../types/twitch";
 import { z } from "zod";
 import { registerTwitchHandlers } from "./twitch";
 import { TwitchApi } from "@/services/twitchApi";
+import { supabase } from "@/utils/supabase";
+import { handleWorkflow } from "@/functions/handle-workflow";
 
 export class HandlerRegistry {
   private twitchHandlers = new Map<string, (data: unknown, twitchApi: TwitchApi) => Promise<void>>();
@@ -33,6 +35,8 @@ export class HandlerRegistry {
   async processTwitchEvent(eventType: subscription_type, data: EventSubNotification): Promise<void> {
     const twitchApi = new TwitchApi(data.payload.event.broadcaster_user_id);
 
+    const broadcasterId = data.payload.event.broadcaster_user_id;
+
     const handler = this.twitchHandlers.get(eventType);
 
     if (!handler) {
@@ -40,11 +44,29 @@ export class HandlerRegistry {
       return;
     }
 
-    try {
-      await handler(data.payload.event, twitchApi);
-    } catch (error) {
+    // try {
+    //   await handler(data.payload.event, twitchApi);
+    // } catch (error) {
+    //   console.log(error);
+    //   throw error;
+    // }
+    if (eventType === "channel.chat.message") return;
+
+    // check for workflow trigger
+    const { data: workflowData, error } = await supabase
+      .from("workflow_triggers")
+      .select("*, workflows(*, workflow_actions(*))")
+      .eq("twitch_user_id", broadcasterId)
+      .eq("event", eventType);
+
+    if (error) {
       console.log(error);
-      throw error;
+      return;
+    }
+
+
+    if (workflowData && workflowData.length > 0) {
+      await handleWorkflow(workflowData, twitchApi, data.payload.event);
     }
   }
 }

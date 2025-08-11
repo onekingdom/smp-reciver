@@ -43,7 +43,7 @@ export const registerTwitchHandlers = (handlers: HandlerRegistry) => {
   handlers.registerTwitchHandler(
     "channel.channel_points_custom_reward_redemption.add",
     async (event) => {
-      logTwitchEvent(event.broadcaster_user_id, "channel.channel_points_custom_reward_redemption.add", event, event.redeemed_at);
+      console.log(event);
     },
     TwitchSchema.ChannelPointsCustomRewardRedemptionAddSchema
   );
@@ -55,5 +55,14 @@ export const registerTwitchHandlers = (handlers: HandlerRegistry) => {
       await handleChatMessage(event, twitchApi);
     },
     TwitchSchema.ChatMessageSchema
+  );
+
+  // channel points redemption
+  handlers.registerTwitchHandler(
+    "channel.channel_points_custom_reward_redemption.update",
+    async (event) => {
+      // console.log(event);
+    },
+    TwitchSchema.ChannelPointsCustomRewardRedemptionAddSchema
   );
 };
