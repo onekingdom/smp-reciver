@@ -11,6 +11,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.49.10",
     "axios": "^1.9.0",
+    "date-fns": "^4.1.0",
     "hono": "^4.7.11",
     "zod": "^3.25.51"
   }

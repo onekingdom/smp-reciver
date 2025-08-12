@@ -42,9 +42,7 @@ export const registerTwitchHandlers = (handlers: HandlerRegistry) => {
   // channelPoints
   handlers.registerTwitchHandler(
     "channel.channel_points_custom_reward_redemption.add",
-    async (event) => {
-      console.log(event);
-    },
+    async (event) => {},
     TwitchSchema.ChannelPointsCustomRewardRedemptionAddSchema
   );
 

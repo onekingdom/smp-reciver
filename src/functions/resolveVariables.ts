@@ -1,61 +1,15 @@
-import type { z } from "zod";
-import type { ChatMessageSchema } from "@/schema/twitch-schema";
 import type { TwitchApi } from "@/services/twitchApi";
+import TwitchVariableResolvers from "./variables/twitch";
+import { GlobalVariableResolvers } from "./variables/global";
 
-type VariableResolver = (ctx: { twitchApi: TwitchApi; event: z.infer<typeof ChatMessageSchema> }) => Promise<string>;
+type TwitchContext = { twitchApi: TwitchApi; event: any };
+type TwitchVariableResolver = (ctx: TwitchContext) => Promise<string>;
+type GlobalVariableResolver = () => Promise<string>;
 
-const TwitchVariableResolvers: Record<string, VariableResolver> = {
-  follower_count: async ({ twitchApi }) => {
-    const count = await twitchApi.followers.getFollowerCount();
-    return String(count ?? 0);
-  },
-  follow_age: async ({ twitchApi, event }) => {
-    const info = await twitchApi.followers.getFollowInfo(event.chatter_user_id);
-    if (!info) return "";
-    const followedAt = new Date(info.followed_at).getTime();
-    const now = Date.now();
-    const deltaMs = Math.max(0, now - followedAt);
-    // Simple humanizer: days
-    const days = Math.floor(deltaMs / (1000 * 60 * 60 * 24));
-    if (days <= 0) return "today";
-    if (days === 1) return "1 day";
-    return `${days} days`;
-  },
+const TwitchResolvers = TwitchVariableResolvers as Record<string, TwitchVariableResolver>;
+const GlobalResolvers = GlobalVariableResolvers as Record<string, GlobalVariableResolver>;
 
-  username: async ({ event }) => {
-    return event.chatter_user_name;
-  },
-
-  user_id: async ({ event }) => {
-    return event.chatter_user_id;
-  },
-
-  broadcaster_name: async ({ event }) => {
-    return event.broadcaster_user_name;
-  },
-
-  broadcaster_id: async ({ event }) => {
-    return event.broadcaster_user_id;
-  },
-
-  subscriber_count: async ({ twitchApi, event }) => {
-    const count = await twitchApi.subscriptions.getSubscriberCount();
-    return String(count ?? 0);
-  },
-
-
-};
-
-// Registry of namespaced resolvers. Key is namespace (e.g., "twitch").
-const ResolverRegistry: Record<string, Record<string, VariableResolver>> = {
-  twitch: TwitchVariableResolvers,
-  // youtube: YouTubeVariableResolvers, // Future
-};
-
-export async function resolveVariables(
-  template: string,
-  ctx: { twitchApi: TwitchApi; event: z.infer<typeof ChatMessageSchema> }
-) {
+export async function resolveVariables(template: string, ctx?: TwitchContext) {
   // Support variable names with dots for namespacing, e.g., ${twitch.subscriber_count}
   const matches = template.match(/\$\{([\w\.-]+)\}/g) || [];
   let result = template;
@@ -67,9 +21,24 @@ export async function resolveVariables(
     const hasNamespace = raw.includes(".");
     const [namespace, key] = hasNamespace ? (raw.split(".", 2) as [string, string]) : ["twitch", raw];
 
-    const namespaceResolvers = ResolverRegistry[namespace];
-    const resolver = namespaceResolvers ? namespaceResolvers[key] : undefined;
-    const value = resolver ? await resolver(ctx) : "";
+    let value = "";
+    if (namespace === "global") {
+      const resolver = GlobalResolvers[key];
+      value = resolver ? await resolver() : "";
+    } else if (namespace === "twitch") {
+      const resolver = TwitchResolvers[key];
+      if (!resolver) {
+        value = "";
+      } else {
+        if (!ctx || !ctx.twitchApi) {
+          throw new Error(`Twitch context is required for variable: ${match}`);
+        }
+        value = await resolver(ctx);
+      }
+    } else {
+      // Unknown namespace – leave blank for now
+      value = "";
+    }
     result = result.replace(match, value);
   }
 

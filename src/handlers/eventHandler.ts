@@ -44,12 +44,14 @@ export class HandlerRegistry {
       return;
     }
 
-    // try {
-    //   await handler(data.payload.event, twitchApi);
-    // } catch (error) {
-    //   console.log(error);
-    //   throw error;
-    // }
+    try {
+      await handler(data.payload.event, twitchApi);
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+
+    
     if (eventType === "channel.chat.message") return;
 
     // check for workflow trigger

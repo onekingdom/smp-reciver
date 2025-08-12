@@ -30,6 +30,6 @@ export class TwitchMarkersClient extends TwitchApiBaseClient {
       user_id: this.broadcaster_id,
       description,
     });
-    return response.data;
+    return response.data.data[0];
   }
 }

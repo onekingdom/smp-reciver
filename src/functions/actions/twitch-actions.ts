@@ -5,16 +5,16 @@ import { resolveVariables } from "../resolveVariables";
 
 export const TwitchActionHandlers: Record<string, (event: ActionEvent, twitchApi: TwitchApi) => Promise<any>> = {
   create_marker: async (event, twitchApi) => {
-    const description = event.currentActionContext.description;
+    const description: string = event.currentActionContext.description;
 
-    const marker = await twitchApi.markers.createMarker();
-    return marker.data;
+    const resolvedDescription = await resolveVariables(description, {  });
+
+    const marker = await twitchApi.markers.createMarker(resolvedDescription);
+    return marker;
   },
 
   send_chat_message: async (event, twitchApi) => {
     const message = event.currentActionContext.message;
-
-    console.log(event.results);
 
     const messageResponse = await twitchApi.chat.sendMessage({
       message,
