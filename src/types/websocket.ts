@@ -78,3 +78,9 @@ export interface RandomMobSpawnMetadata {
   amount: number;
   viewer_name: string;  
 }
+
+
+export interface SupernovaMetadata {
+  level: number;
+  viewer_name: string;
+}

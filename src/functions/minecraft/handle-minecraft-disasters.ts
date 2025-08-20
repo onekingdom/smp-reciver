@@ -1,16 +1,17 @@
 import { MinecraftActionType } from "@/types";
 import { TwitchApi } from "@/services/twitchApi";
 import MinecraftAction from "./handle-minecraft-action-base";
-import { WindStormMetadata } from "@/types/websocket";
+import { SupernovaMetadata, WindStormMetadata } from "@/types/websocket";
 
 export class MinecraftDisasters extends MinecraftAction {
   constructor(broadcaster_id: string, twitchApi: TwitchApi) {
     super(broadcaster_id, twitchApi);
   }
 
-  public async superNova() {
+  public async superNova(metadata: SupernovaMetadata) {
     await this.execute("disaster.supernova", {
-      level: 10,
+      level: metadata.level,
+      viewer_name: metadata.viewer_name,
     });
   }
 

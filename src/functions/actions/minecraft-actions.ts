@@ -2,7 +2,7 @@ import { ActionEvent, handleAction } from "../handle-action";
 import { TwitchApi } from "../../services/twitchApi";
 import { MinecraftActions } from "../minecraft/handle-minecraft-actions";
 import MinecraftActionBase from "../minecraft/handle-minecraft-action-base";
-import { RandomMobSpawnMetadata, TwitchSubscriptionMetadata } from "@/types/websocket";
+import { RandomMobSpawnMetadata, SupernovaMetadata, TwitchSubscriptionMetadata } from "@/types/websocket";
 import { resolveVariables, resolveObjectValues } from "../resolveVariables";
 
 
@@ -30,7 +30,10 @@ export const MinecraftActionHandlers: Record<string, (event: ActionEvent, twitch
     await mc?.Jumpscares.doorScare();
   },
   supernova: async (event, twitchApi, mc) => {
-    await mc?.Disasters.superNova();
+
+    const metadata = await resolveObjectValues(event.currentActionContext, {twitchApi: twitchApi}, event.results) as SupernovaMetadata;
+
+    await mc?.Disasters.superNova(metadata);
   },
   windstorm: async (event, twitchApi, mc) => {
     await mc?.Disasters.Windstorm();
