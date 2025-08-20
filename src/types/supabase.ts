@@ -64,7 +64,6 @@ export type Database = {
       }
       chat_commands: {
         Row: {
-          action: string | null
           channel_id: string
           created_at: string
           created_by: string
@@ -72,9 +71,9 @@ export type Database = {
           response: string | null
           trigger: string
           visibility: string
+          workflow: string | null
         }
         Insert: {
-          action?: string | null
           channel_id: string
           created_at?: string
           created_by: string
@@ -82,9 +81,9 @@ export type Database = {
           response?: string | null
           trigger: string
           visibility?: string
+          workflow?: string | null
         }
         Update: {
-          action?: string | null
           channel_id?: string
           created_at?: string
           created_by?: string
@@ -92,13 +91,14 @@ export type Database = {
           response?: string | null
           trigger?: string
           visibility?: string
+          workflow?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "chat_commands_action_fkey"
-            columns: ["action"]
+            foreignKeyName: "chat_commands_workflow_fkey"
+            columns: ["workflow"]
             isOneToOne: false
-            referencedRelation: "actions"
+            referencedRelation: "workflows"
             referencedColumns: ["id"]
           },
         ]

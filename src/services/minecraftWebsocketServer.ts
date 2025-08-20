@@ -1,4 +1,5 @@
 import { HandlerRegistry, handlers } from "@/handlers/eventHandler";
+import { MinecraftRedemptionData } from "@/types/websocket";
 import type { ServerWebSocket } from "bun";
 
 export class BunWebSocketServer {
@@ -86,7 +87,7 @@ export class BunWebSocketServer {
     console.log(message);
   }
 
-  broadcast(message: unknown, filter?: (ws: ServerWebSocket<{ createdAt: number }>) => boolean): void {
+  broadcast(message: MinecraftRedemptionData<unknown>, filter?: (ws: ServerWebSocket<{ createdAt: number }>) => boolean): void {
     const payload = JSON.stringify(message);
 
     this.clients.forEach((_, ws) => {

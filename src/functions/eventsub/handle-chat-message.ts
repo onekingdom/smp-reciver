@@ -7,10 +7,10 @@ import { handleAction } from "../handle-action";
 import { resolveVariables } from "../resolveVariables";
 import { checkCommandCooldowns } from "../command/checkCooldown";
 import { checkPermission } from "../command/checkPermission";
+import { handleWorkflow, WorkflowData } from "../handle-workflow";
 
 export async function handleChatMessage(event: z.infer<typeof ChatMessageSchema>, twitchApi: TwitchApi) {
   const { broadcaster_user_id, broadcaster_user_name, chatter_user_id, chatter_user_name, message, message_id } = event;
-  
 
   if (env.NODE_ENV === "development") {
     console.log(`[${broadcaster_user_name}] ${chatter_user_name}: ${message.text}`);
@@ -27,13 +27,7 @@ export async function handleChatMessage(event: z.infer<typeof ChatMessageSchema>
   }
 
   // 1) Permission check
-  const permissionResult = await checkPermission(
-    chatter_user_id,
-    broadcaster_user_id,
-    command.command_permissions ?? [],
-    event,
-    twitchApi
-  );
+  const permissionResult = await checkPermission(chatter_user_id, broadcaster_user_id, command.command_permissions ?? [], event, twitchApi);
   if (!permissionResult.allowed) {
     await twitchApi.chat.sendMessage({
       message: permissionResult.reason ?? "You don't have permission to use this command.",
@@ -72,19 +66,13 @@ export async function handleChatMessage(event: z.infer<typeof ChatMessageSchema>
     await twitchApi.chat.sendMessage({ message: templated, replyToMessageId: message_id });
   }
 
-  if (command.actions) {
-    await handleAction(
+  if (command.workflows) {
+    const workflows: WorkflowData[] = [
       {
-        action: command.actions.action,
-        module: command.actions.module,
-        metadata: command.actions.metadata as Record<string, any>,
-        broadcaster_user_id,
-        broadcaster_user_name,
-        chatter_user_id,
-        chatter_user_name,
-        message: message.text,
+        ...command.workflows,
+        workflow_trigger_id: command.id,
       },
-      twitchApi
-    );
+    ];
+    await handleWorkflow(workflows, twitchApi, event);
   }
 }

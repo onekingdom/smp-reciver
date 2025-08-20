@@ -179,7 +179,6 @@ export class TwitchEventSubClient extends TwitchApiBaseClient {
   }
 
   async updateShardTransport(conduitId: string, shardId: string, transport: Transport): Promise<{ data: Conduit[] }> {
-    console.log("Updating shard transport:", { conduitId, shardId, transport });
 
     const response = await this.appApi().patch("/eventsub/conduits/shards", {
       conduit_id: conduitId,

@@ -31,7 +31,6 @@ export interface GetClipsOptions {
 }
 
 export interface CreateClipOptions {
-  broadcasterId: string;
   hasDelay?: boolean;
 }
 
@@ -50,8 +49,12 @@ export class TwitchClipsClient extends TwitchApiBaseClient {
     return response.data.data[0];
   }
 
-  async createClip(options: CreateClipOptions): Promise<{ id: string; edit_url: string }> {
-    const response = await this.clientApi().post("/clips", null, { params: options });
+  async createClip(): Promise<{ id: string; edit_url: string }> {
+    const response = await this.clientApi().post("/clips", null, {
+      params: {
+        broadcaster_id: this.broadcaster_id,
+      },
+    });
     return response.data.data[0];
   }
 }

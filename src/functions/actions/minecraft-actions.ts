@@ -1,50 +1,43 @@
 import { ActionEvent, handleAction } from "../handle-action";
 import { TwitchApi } from "../../services/twitchApi";
 import { MinecraftActions } from "../minecraft/handle-minecraft-actions";
+import MinecraftActionBase from "../minecraft/handle-minecraft-action-base";
+import { RandomMobSpawnMetadata, TwitchSubscriptionMetadata } from "@/types/websocket";
+import { resolveVariables, resolveObjectValues } from "../resolveVariables";
 
-function createMinecraftActions(event: ActionEvent, twitchApi: TwitchApi) {
-  return new MinecraftActions(
-    {
-      broadcaster_user_id: event.broadcaster_user_id,
-      broadcaster_username: event.broadcaster_user_name,
-      viewer_id: event.chatter_user_id,
-      viewer_name: event.chatter_user_name,
-    },
-    twitchApi
-  );
-}
 
-export const MinecraftActionHandlers: Record<string, (event: ActionEvent, twitchApi: TwitchApi) => Promise<void>> = {
-  launce: async (event, twitchApi) => {
-    const mc = createMinecraftActions(event, twitchApi);
-    await mc.Events.launcePlayer();
+
+export const MinecraftActionHandlers: Record<string, (event: ActionEvent, twitchApi: TwitchApi, mc?: MinecraftActions) => Promise<void>> = {
+  launce: async (event, twitchApi, mc) => {
+
+    await mc?.Events.launcePlayer();
   },
-  random_mob_spawn: async (event, twitchApi) => {
-    const mc = createMinecraftActions(event, twitchApi);
-    await mc.Events.randomMobSpawn();
+  spawn_mobs: async (event, twitchApi, mc) => {
+
+    const metadata = await resolveObjectValues(event.currentActionContext, {twitchApi: twitchApi}, event.results) as RandomMobSpawnMetadata;
+    
+    console.log("After resolving:", metadata);
+
+    await mc?.Events.randomMobSpawn(metadata);
   },
-  fake_damage: async (event, twitchApi) => {
-    const mc = createMinecraftActions(event, twitchApi);
-    await mc.Jumpscares.fakeDamage();
+  fake_damage: async (event, twitchApi, mc) => {
+    await mc?.Jumpscares.fakeDamage();
   },
-  fireworks: async (event, twitchApi) => {
-    const mc = createMinecraftActions(event, twitchApi);
-    await mc.Jumpscares.fireworks();
+  fireworks: async (event, twitchApi, mc) => {
+    await mc?.Jumpscares.fireworks();
   },
-  door_scare: async (event, twitchApi) => {
-    const mc = createMinecraftActions(event, twitchApi);
-    await mc.Jumpscares.doorScare();
+  door_scare: async (event, twitchApi, mc) => {
+    await mc?.Jumpscares.doorScare();
   },
-  supernova: async (event, twitchApi) => {
-    const mc = createMinecraftActions(event, twitchApi);
-    await mc.Disasters.superNova();
+  supernova: async (event, twitchApi, mc) => {
+    await mc?.Disasters.superNova();
   },
-  windstorm: async (event, twitchApi) => {
-    const mc = createMinecraftActions(event, twitchApi);
-    await mc.Disasters.Windstorm();
+  windstorm: async (event, twitchApi, mc) => {
+    await mc?.Disasters.Windstorm();
   },
-  twitch_subscription: async (event, twitchApi) => {
-    const mc = createMinecraftActions(event, twitchApi);
-    await mc.Events.TwitchSubscriptionAlert(event.metadata);
+  twitch_subscription: async (event, twitchApi, mc) => {
+    const metadata = await resolveObjectValues(event.currentActionContext, {twitchApi: twitchApi}, event.results) as TwitchSubscriptionMetadata;
+
+    await mc?.Events.TwitchSubscriptionAlert(metadata);
   },
 };

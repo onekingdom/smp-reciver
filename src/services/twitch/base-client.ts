@@ -1,17 +1,11 @@
 import type { AxiosInstance, AxiosError, InternalAxiosRequestConfig, AxiosResponse } from "axios";
-import { env, type Env } from "../../utils/env.js";
+import { env } from "../../utils/env.js";
 import { getTwitchIntegration, refreshTwitchToken, getTwitchAppToken, updateTwitchAppToken } from "../../lib/supabase.js";
 import axios from "axios";
-import { supabase } from "@/utils/supabase.js";
 
-interface TokenCache {
-  token: string;
-  expiresAt: number; // Store as timestamp in milliseconds
-}
 
 export abstract class TwitchApiBaseClient {
   private readonly MAX_RETRIES = 2;
-  private requestRetryCount: Map<string, number> = new Map();
   protected broadcaster_id: string | null = null;
 
   constructor(broadcaster_id: string | null = null) {
@@ -39,36 +33,33 @@ export abstract class TwitchApiBaseClient {
     api.interceptors.response.use(
       (response: AxiosResponse) => response,
       async (error: AxiosError) => {
-        const config = error.config!;
-        // Use a unique key for this request (e.g., method+url+timestamp or a request ID header)
-        const requestId = (config.headers["X-Request-ID"] as string) || `${config.method}-${config.url}`;
+        const config = error.config as (InternalAxiosRequestConfig & { __retryCount?: number });
+        if (!config) return Promise.reject(error);
 
-        const retryCount = this.requestRetryCount.get(requestId) || 0;
+        const statusCode = error.response?.status;
+        const currentRetryCount = config.__retryCount || 0;
 
-        if (error.response?.status === 401 && retryCount < this.MAX_RETRIES) {
+        if (statusCode === 401 && currentRetryCount < this.MAX_RETRIES) {
+          config.__retryCount = currentRetryCount + 1;
           try {
-            this.requestRetryCount.set(requestId, retryCount + 1);
             if (!this.broadcaster_id) {
               throw new Error("Broadcaster ID is required in Twitch client interceptor");
             }
             console.log("🔄 Token expired, attempting to refresh for broadcaster:", this.broadcaster_id);
             const newToken = await this.refreshTokenAndRetry(this.broadcaster_id);
-            if (newToken) {
-              config.headers = config.headers || {};
-              config.headers["Authorization"] = `Bearer ${newToken}`;
-              console.log("✅ Token refreshed, retrying request");
-              return api(config);
+            if (!newToken) {
+              return Promise.reject(error);
             }
+            config.headers = config.headers || {};
+            config.headers["Authorization"] = `Bearer ${newToken}`;
+            console.log("✅ Token refreshed, retrying request");
+            return api(config);
           } catch (refreshError) {
             console.error("❌ Token refresh failed:", refreshError);
-          } finally {
-            // Clean up retry count after attempt
-            this.requestRetryCount.delete(requestId);
+            return Promise.reject(refreshError);
           }
-        } else {
-          // Clean up on non-401 or if max retries exceeded
-          this.requestRetryCount.delete(requestId);
         }
+
         return Promise.reject(error);
       }
     );
@@ -118,24 +109,15 @@ export abstract class TwitchApiBaseClient {
     return integration.access_token;
   }
   private async refreshTokenAndRetry(channelId: string): Promise<string | null> {
-    // Check if a refresh is already in progress
-
-    // Create a new refresh promise
-    const refreshPromise = (async () => {
-      try {
-        const integration = await refreshTwitchToken(channelId);
-        if (!integration || !integration.expires_at) {
-          return null;
-        }
-
-        // Update cache (convert expires_at to milliseconds if it's not already)
-
-        return integration.access_token;
-      } finally {
+    try {
+      const integration = await refreshTwitchToken(channelId);
+      if (!integration || !integration.expires_at) {
+        return null;
       }
-    })();
-
-    return refreshPromise;
+      return integration.access_token;
+    } catch (e) {
+      return null;
+    }
   }
   private async getAppAccessToken(): Promise<string> {
     try {

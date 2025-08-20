@@ -142,7 +142,7 @@ export async function logTwitchEvent(broadcaster_id: string, eventType: subscrip
 export async function getCommand(channelId: string, trigger: string) {
   const { data, error } = await supabase
     .from("chat_commands")
-    .select("*, actions(*), command_cooldowns(*), commands_active_cooldowns(*), command_permissions(*)")
+    .select("*, workflows(*, workflow_actions(*)), command_cooldowns(*), commands_active_cooldowns(*), command_permissions(*)")
     .eq("channel_id", channelId)
     .eq("trigger", trigger)
     .single();

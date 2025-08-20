@@ -1,29 +1,23 @@
 import { MinecraftActionType } from "@/types";
 import MinecraftAction from "./handle-minecraft-action-base";
 import { TwitchApi } from "@/services/twitchApi";
-import { TwitchSubscriptionMetadata } from "@/types/websocket";
+import { RandomMobSpawnMetadata, TwitchSubscriptionMetadata } from "@/types/websocket";
 
 export class MinecraftEvents extends MinecraftAction {
-  constructor(minecraftAction: MinecraftActionType, twitchApi: TwitchApi) {
-    super(minecraftAction, twitchApi);
+  constructor(broadcaster_id: string, twitchApi: TwitchApi) {
+    super(broadcaster_id, twitchApi);
   }
 
   public async launcePlayer() {
     await this.execute("event.launce");
   }
 
-  public async randomMobSpawn() {
-    const viewers = await this.twitchApi.chat.getViewers();
+  public async randomMobSpawn(metadata: RandomMobSpawnMetadata) {
 
-    const disabled_viewers = ["onekingdombot", "streamelements", "streamlabs", "nightbot", "modbot", "Fossabot", "PhantomBot"];
-
-    const viewer_list: string[] = viewers
-      ?.filter((viewer) => !disabled_viewers.map((v) => v.toLowerCase()).includes(viewer.user_name.toLowerCase()))
-      .map((viewer) => viewer.user_name) || ["unknown"];
     await this.execute("event.random_mob_spawn", {
-      viewer_list: viewer_list,
-      mob_list: ["zombie", "skeleton", "creeper"],
-      amount: 10,
+      viewer_list: metadata.viewer_list,
+      mob_list: metadata.mob_list,
+      amount: metadata.amount,
     });
   }
 

@@ -3,8 +3,8 @@ import MinecraftAction from "./handle-minecraft-action-base";
 import { TwitchApi } from "@/services/twitchApi";
 
 export class MinecraftJumpscares extends MinecraftAction {
-  constructor(minecraftAction: MinecraftActionType, twitchApi: TwitchApi) {
-    super(minecraftAction, twitchApi);
+  constructor(broadcaster_id: string, twitchApi: TwitchApi) {
+    super(broadcaster_id, twitchApi);
   }
 
   public async fakeDamage() {

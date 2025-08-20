@@ -1,8 +1,8 @@
-import { wsServer } from "@/services/minecraftWebsocketServer";
 import { TwitchApi } from "@/services/twitchApi";
 import { MinecraftActions } from "./minecraft/handle-minecraft-actions";
 import { MinecraftActionHandlers } from "./actions/minecraft-actions";
 import { TwitchActionHandlers } from "./actions/twitch-actions";
+import customLogger from "@/lib/logger";
 
 export interface ActionEvent {
   action: string;
@@ -12,7 +12,7 @@ export interface ActionEvent {
   results: Record<string, any>;
 }
 
-export type ActionHandler = (event: ActionEvent, twitchApi: TwitchApi) => Promise<void>;
+export type ActionHandler = (event: ActionEvent, twitchApi: TwitchApi, wsServer?: MinecraftActions,) => Promise<void>;
 
 // Namespaced registry similar to variable resolvers
 const ActionRegistry: Record<string, Record<string, ActionHandler>> = {
@@ -20,7 +20,7 @@ const ActionRegistry: Record<string, Record<string, ActionHandler>> = {
   twitch: TwitchActionHandlers,
 };
 
-export async function handleAction(action: ActionEvent, twitchApi: TwitchApi) {
+export async function handleAction(action: ActionEvent, twitchApi: TwitchApi, broadcaster_id: string) {
   const moduleHandlers = ActionRegistry[action.module];
   if (!moduleHandlers) {
     console.log(`No module registered for '${action.module}'`);
@@ -30,6 +30,12 @@ export async function handleAction(action: ActionEvent, twitchApi: TwitchApi) {
   if (!handler) {
     console.log(`No action handler for '${action.module} + ${action.action}'`);
     return;
+  }
+
+  if(action.module === "minecraft") {
+    customLogger.info(`Handling Minecraft action: ${action.action}`);
+    const minecraftActionBase = new MinecraftActions(broadcaster_id, twitchApi);
+    return await handler(action, twitchApi, minecraftActionBase);
   }
 
   const result = await handler(action, twitchApi);

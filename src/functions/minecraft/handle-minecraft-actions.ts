@@ -6,14 +6,20 @@ import { MinecraftJumpscares } from "./handle-minecraft-jumpscares";
 import { MinecraftDisasters } from "./handle-minecraft-disasters";
 
 export class MinecraftActions {
-  public minecraftActionBase: MinecraftActionBase;
+  protected minecraftActionBase: MinecraftActionBase;
   public Events: MinecraftEvents;
   public Jumpscares: MinecraftJumpscares;
   public Disasters: MinecraftDisasters;
-  constructor(minecraftAction: MinecraftActionType, twitchApi: TwitchApi) {
-    this.minecraftActionBase = new MinecraftActionBase(minecraftAction, twitchApi);
-    this.Events = new MinecraftEvents(minecraftAction, twitchApi);
-    this.Jumpscares = new MinecraftJumpscares(minecraftAction, twitchApi);
-    this.Disasters = new MinecraftDisasters(minecraftAction, twitchApi);
+  
+  
+  
+  constructor(broadcaster_id: string, twitchApi: TwitchApi) {
+
+
+    
+    this.minecraftActionBase = new MinecraftActionBase(broadcaster_id, twitchApi);
+    this.Events = new MinecraftEvents(broadcaster_id, twitchApi);
+    this.Jumpscares = new MinecraftJumpscares(broadcaster_id, twitchApi);
+    this.Disasters = new MinecraftDisasters(broadcaster_id, twitchApi);
     }
 }

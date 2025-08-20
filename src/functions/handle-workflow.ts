@@ -2,19 +2,18 @@ import { Database } from "@/types/supabase";
 import { ActionEvent, handleAction } from "./handle-action";
 import { TwitchApi } from "@/services/twitchApi";
 
-// The relation `workflows(*, workflow_actions(*))` returns a single workflow (via FK)
-// with an array of `workflow_actions`, or null if missing.
-export type WorkflowTrigger = Database["public"]["Tables"]["workflow_triggers"]["Row"] & {
-  workflows:
-    | (Database["public"]["Tables"]["workflows"]["Row"] & {
-        workflow_actions: Database["public"]["Tables"]["workflow_actions"]["Row"][];
-      })
-    | null;
+
+
+export type WorkflowData = Database["public"]["Tables"]["workflows"]["Row"] & {
+  workflow_actions: Database["public"]["Tables"]["workflow_actions"]["Row"][];
+  workflow_trigger_id: string
 };
 
-export async function handleWorkflow(workflowData: WorkflowTrigger[], twitchApi: TwitchApi, triggerData: any) {
-  for (const workflowTrigger of workflowData) {
-    const workflow = workflowTrigger.workflows;
+
+
+export async function handleWorkflow(workflowData: WorkflowData[], twitchApi: TwitchApi, triggerData: any, broadcasterId: string) {
+  let index = 0;
+  for (const workflow of workflowData) {
     if (!workflow) continue;
 
     // Sort actions by order (ascending)
@@ -26,7 +25,7 @@ export async function handleWorkflow(workflowData: WorkflowTrigger[], twitchApi:
     const context: Record<string, any> = {};
 
     const resluts: Record<string, any> = {
-      trigger: triggerData,
+      [workflow.workflow_trigger_id]: triggerData,
     };
 
     for (const action of sortedActions) {
@@ -43,16 +42,18 @@ export async function handleWorkflow(workflowData: WorkflowTrigger[], twitchApi:
           results: resluts,
         };
 
-        const result = await handleAction(actionEvent, twitchApi);
+        const result = await handleAction(actionEvent, twitchApi, broadcasterId);
 
         // Store result in results
         resluts[action.id] = result;
       } catch (err) {
-        console.error(`Action ${action.id} failed:`, err);
+        console.log(err);
+        console.log("error in action handler " + action.type + " " + err);
         break; // stop workflow if action fails
       }
     }
 
     console.log(`Workflow "${workflow.name}" completed`);
+    index++;
   }
 }

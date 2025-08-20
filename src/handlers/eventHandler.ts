@@ -4,7 +4,7 @@ import { z } from "zod";
 import { registerTwitchHandlers } from "./twitch";
 import { TwitchApi } from "@/services/twitchApi";
 import { supabase } from "@/utils/supabase";
-import { handleWorkflow } from "@/functions/handle-workflow";
+import { handleWorkflow, WorkflowData } from "@/functions/handle-workflow";
 
 export class HandlerRegistry {
   private twitchHandlers = new Map<string, (data: unknown, twitchApi: TwitchApi) => Promise<void>>();
@@ -21,7 +21,8 @@ export class HandlerRegistry {
         const parsedData = schema ? schema.parse(data) : data;
         await handler(parsedData as T, twitchApi);
       } catch (error) {
-        console.log(error);
+        console.log("Error in twitch handler");
+        // console.log(error);
       }
     });
   }
@@ -33,9 +34,41 @@ export class HandlerRegistry {
 
   // Process Twitch EventSub events
   async processTwitchEvent(eventType: subscription_type, data: EventSubNotification): Promise<void> {
-    const twitchApi = new TwitchApi(data.payload.event.broadcaster_user_id);
+    const broadcasterId = extractReceivingBroadcasterId(data.payload.event);
 
-    const broadcasterId = data.payload.event.broadcaster_user_id;
+    if (!broadcasterId) {
+      console.log("No broadcaster id found in event");
+      throw new Error("No broadcaster id found in event");
+    }
+
+    const twitchApi = new TwitchApi(broadcasterId);
+    // check for workflow trigger
+    const { data: workflowData, error } = await supabase
+      .from("workflows")
+      .select(
+        `
+        *,
+        workflow_actions(*),
+        workflow_triggers!inner(*)
+      `
+      )
+      .eq("twitch_user_id", broadcasterId)
+      .eq("workflow_triggers.event", eventType);
+
+    if (error) {
+      console.log("error in supabase query for workflows");
+      return;
+    }
+
+    const workflows: WorkflowData[] = workflowData.map((w) => ({
+      ...w,
+      workflow_trigger_id: w.workflow_triggers[0].id,
+    }));
+
+
+    if (workflows.length > 0) {
+      await handleWorkflow(workflows, twitchApi, data.payload.event, broadcasterId);
+    }
 
     const handler = this.twitchHandlers.get(eventType);
 
@@ -45,32 +78,51 @@ export class HandlerRegistry {
     }
 
     try {
+      console.log("handler found for event type:", eventType);
       await handler(data.payload.event, twitchApi);
     } catch (error) {
-      console.log(error);
+      console.log("error in twitch event handler");
       throw error;
     }
 
-    
     if (eventType === "channel.chat.message") return;
-
-    // check for workflow trigger
-    const { data: workflowData, error } = await supabase
-      .from("workflow_triggers")
-      .select("*, workflows(*, workflow_actions(*))")
-      .eq("twitch_user_id", broadcasterId)
-      .eq("event", eventType);
-
-    if (error) {
-      console.log(error);
-      return;
-    }
-
-
-    if (workflowData && workflowData.length > 0) {
-      await handleWorkflow(workflowData, twitchApi, data.payload.event);
-    }
   }
 }
 
 export const handlers = new HandlerRegistry();
+
+/**
+ * Return the broadcaster id that RECEIVED the event (the channel the event is about),
+ * or null if none of the common fields are present.
+ *
+ * Pass `event` = data.payload.event from the webhook body.
+ */
+function extractReceivingBroadcasterId(event: Record<string, any>): string | null {
+  if (!event) return null;
+
+  // 1) direct "to_" field (multi-channel events like raid)
+  if (typeof event.to_broadcaster_user_id === "string" && event.to_broadcaster_user_id) {
+    return event.to_broadcaster_user_id;
+  }
+
+  // 2) plain broadcaster_user_id (most channel-scoped events)
+  if (typeof event.broadcaster_user_id === "string" && event.broadcaster_user_id) {
+    return event.broadcaster_user_id;
+  }
+
+  // 3) some events put the payload inside event.data (array) — check first item
+  if (Array.isArray(event.data) && event.data.length > 0) {
+    const d0 = event.data[0];
+    if (d0 && typeof d0.to_broadcaster_user_id === "string" && d0.to_broadcaster_user_id) {
+      return d0.to_broadcaster_user_id;
+    }
+    if (d0 && typeof d0.broadcaster_user_id === "string" && d0.broadcaster_user_id) {
+      return d0.broadcaster_user_id;
+    }
+  }
+
+  // 4) fallback: some events include only from_ fields (rare) — we don't treat "from" as receiver.
+  // If you *also* want to treat `from_broadcaster_user_id` as receiver in some contexts,
+  // pass your own channel id and compare; otherwise return null.
+  return null;
+}

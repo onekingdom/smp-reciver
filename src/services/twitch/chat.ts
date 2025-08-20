@@ -30,4 +30,22 @@ export class TwitchChatClient extends TwitchApiBaseClient {
       console.error(error);
     }
   }
+
+  async sendShoutout(to_broadcaster_id: string) {
+    const response = await this.clientApi().post(`/chat/shoutouts`, {
+      from_broadcaster_id: this.broadcaster_id,
+      to_broadcaster_id: to_broadcaster_id,
+      moderator_id: this.broadcaster_id,
+    });
+    return response.data;
+  }
+
+  async sendAnnouncement(message: string) {
+    const response = await this.clientApi().post(`/chat/announcements`, {
+      broadcaster_id: this.broadcaster_id,
+      moderator_id: this.broadcaster_id,
+      message: message,
+    });
+    return response.data;
+  }
 }
